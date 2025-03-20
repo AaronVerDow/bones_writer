@@ -13,27 +13,45 @@ class BonesWriter:
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".txt"
         self.filepath = Path.joinpath(self.dir, self.filename)
         self.start_time = time.time_ns()
-        os.mkdir(self.dir)
-
-    def write_char(self, char):
-        self.stdscr.addstr(char)
-        self.outfile.write(char)
-        self.stdscr.refresh()
-
-    def inner_loop(self):
         try:
-            key = self.stdscr.getch()
+            os.mkdir(self.dir)
+        except FileExistsError:
+            pass
+
+        self.margin_top = 2
+        self.margin_bottom = self.margin_top
+        self.margin_sides = 4
+
+    def write_char(self, win, char):
+        self.outfile.write(char)
+        win.addstr(char)
+        win.refresh()
+
+    def make_win(self):
+        screen_height, screen_width = self.stdscr.getmaxyx()
+        win_height = screen_height - self.margin_top - self.margin_bottom
+        win_width = screen_width - self.margin_sides * 2
+        win_x = self.margin_sides
+        win_y = self.margin_top
+
+        win = curses.newwin(win_height, win_width, win_y, win_x)
+
+        return win
+
+    def inner_loop(self, win):
+        try:
+            key = win.getch()
         except KeyboardInterrupt:
             self.running = False
             return
         if key == -1:
             return
         elif key == ord(' '):  # Space key
-            self.write_char(" ")
+            self.write_char(win, " ")
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
-            self.write_char("\n")
+            self.write_char(win, "\n")
         elif 32 <= key <= 126:  # Printable ASCII characters
-            self.write_char(f"{chr(key)}")
+            self.write_char(win, f"{chr(key)}")
 
     def curses_loop(self, stdscr):
         # curses.curs_set(0)  # Hide the cursor
@@ -44,11 +62,13 @@ class BonesWriter:
         # Is this bad practice?
         self.stdscr = stdscr
 
+        win = self.make_win()
+
         with open(self.filepath, "a") as outfile:
             # Is this bad practice?
             self.outfile = outfile
             while self.running:
-                self.inner_loop()
+                self.inner_loop(win)
 
     def cleanup(self):
         end_time = time.time_ns()
@@ -65,8 +85,6 @@ class BonesWriter:
 
         print(f"Words: {word_count}")
 
-
-        
     def main(self):
         curses.wrapper(self.curses_loop)
         self.cleanup()
