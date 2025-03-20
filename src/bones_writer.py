@@ -1,15 +1,19 @@
 import curses
 import time
 import humanize
+import os
 from datetime import datetime
+from pathlib import Path
 
 class BonesWriter:
     def __init__(self):
         self.running = True
         now = datetime.now()
-        self.filename = now.strftime("%Y-%m-%d_%H-%M-%S")
-        self.filename += ".txt" 
+        self.dir = Path.joinpath(Path.home(), "Documents", "bones")
+        self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".txt"
+        self.filepath = Path.joinpath(self.dir, self.filename)
         self.start_time = time.time_ns()
+        os.mkdir(self.dir)
 
     def write_char(self, char):
         self.stdscr.addstr(char)
@@ -40,7 +44,7 @@ class BonesWriter:
         # Is this bad practice?
         self.stdscr = stdscr
 
-        with open(self.filename, "a") as outfile:
+        with open(self.filepath, "a") as outfile:
             # Is this bad practice?
             self.outfile = outfile
             while self.running:
@@ -54,7 +58,7 @@ class BonesWriter:
         print(f"Session time: {human_readable}")
 
         word_count = 0
-        with open(self.filename, "r") as file:
+        with open(self.filepath, "r") as file:
             for line in file:
                 words = line.split()
                 word_count += len(words)
