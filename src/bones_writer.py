@@ -20,7 +20,7 @@ class BonesWriter:
 
         self.margin_top = 2
         self.margin_bottom = self.margin_top
-        self.margin_sides = 4
+        self.margin_sides = 6
 
     def write_char(self, win, char):
         self.outfile.write(char)
@@ -84,6 +84,10 @@ class BonesWriter:
                 word_count += len(words)
 
         print(f"Words: {word_count}")
+
+        wpm = word_count / ( diff_seconds / 60.0 )
+
+        print(f"WPM: {wpm}")
 
     def main(self):
         curses.wrapper(self.curses_loop)
