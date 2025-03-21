@@ -17,7 +17,7 @@
       ];
 
       shellHook = ''
-        echo "Python environment with pynput is ready!"
+        alias python=python3
       '';
     };
   };
