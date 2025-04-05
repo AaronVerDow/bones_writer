@@ -5,8 +5,10 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 0-1000
-GRAY_LEVEL=200
+# adjust for darknes of live stats, 0-1000
+GRAY_LEVEL=200  
+
+# required by curses to define custom color, changes nothing
 GRAY_PAIR=1
 GRAY_COLOR=100
 
@@ -14,9 +16,12 @@ class BonesWriter:
     def __init__(self):
         self.running = True
         now = datetime.now()
+
         self.dir = Path.joinpath(Path.home(), "Documents", "bones")
+
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".txt"
         self.filepath = Path.joinpath(self.dir, self.filename)
+
         # I am tracking sub-second time in case I want to do something with average time per keypress
         self.start_time = time.time_ns()
         self.elapsed = ""
@@ -60,6 +65,7 @@ class BonesWriter:
 
     def status_bar(self, stdscr, raw_string, gap):
         string = str(raw_string)
+
         # start from top right stacking strings
         self.status_y -= gap + len(string)
         stdscr.addstr(0, self.status_y, string, curses.color_pair(GRAY_PAIR))
@@ -84,6 +90,7 @@ class BonesWriter:
 
         # display status bar
         # currently only updates during keypresses
+        # break out later
 
         delta = self.elapsed_seconds()
         if self.elapsed != delta:
@@ -105,7 +112,6 @@ class BonesWriter:
             stdscr.refresh()
 
     def curses_loop(self, stdscr):
-        # curses.curs_set(0)  # Hide the cursor
         stdscr.nodelay(1)   # Make getch() non-blocking
         stdscr.timeout(100) # Refresh every 100ms
 
