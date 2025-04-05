@@ -108,7 +108,6 @@ class BonesWriter:
         # curses.curs_set(0)  # Hide the cursor
         stdscr.nodelay(1)   # Make getch() non-blocking
         stdscr.timeout(100) # Refresh every 100ms
-        stdscr.scrollok(True)
 
         curses.start_color()
         curses.init_color(GRAY_COLOR, GRAY_LEVEL, GRAY_LEVEL, GRAY_LEVEL)
@@ -118,6 +117,7 @@ class BonesWriter:
         self.stdscr = stdscr
 
         win = self.make_win()
+        win.scrollok(True)
 
         with open(self.filepath, "a") as outfile:
             # Is this bad practice?
