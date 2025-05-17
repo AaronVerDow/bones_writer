@@ -12,6 +12,9 @@ GRAY_LEVEL=200
 GRAY_PAIR=1
 GRAY_COLOR=100
 
+# Timeout in seconds before blanking the text
+BLANK_TIMEOUT = 3.0
+
 class BonesWriter:
     def __init__(self):
         self.running = True
@@ -38,11 +41,58 @@ class BonesWriter:
         self.new_word = None
         self.live_word_count = 0
 
+        # Text blanking related variables
+        self.last_keypress_time = time.time()
+        self.blank = False
+        self.text_content = []
+        self.current_line = 0
+        self.current_col = 0
+
     def write_char(self, win, char):
         self.outfile.write(char)
+        
+        y, x = win.getyx()
+        self.text_content.append((char, y, x))
+
+        if self.timeout():
+            self.show_text(win)
+
+        self.last_keypress_time = time.time()
+        
         win.addstr(char)
         win.refresh()
+        
+        if char == '\n':
+            self.current_line += 1
+            self.current_col = 0
+        else:
+            self.current_col += 1
 
+    def blank_text(self, win):
+        # Only run once
+        if self.blank:
+            return
+        cursor_y, cursor_x = win.getyx()  # Save cursor position
+        win.clear()
+        win.refresh()
+        win.move(cursor_y, cursor_x)  # Restore cursor position
+        self.blank = True
+
+    def show_text(self, win):
+        cursor_y, cursor_x = win.getyx()  # Save cursor position
+        win.clear()
+        for char, y, x in self.text_content:
+            try:
+                win.addstr(y, x, char)
+                win.refresh()  # Refresh after each character to ensure proper display
+            except curses.error:
+                pass  # Handle potential curses errors when writing at window boundaries
+        win.move(cursor_y, cursor_x)  # Restore cursor position
+        self.blank = False
+
+    def timeout(self):
+        return time.time() - self.last_keypress_time > BLANK_TIMEOUT
+        
     def make_win(self):
         # other things will depend on this, not sure if this is the safest location
         self.screen_height, self.screen_width = self.stdscr.getmaxyx()
@@ -96,9 +146,14 @@ class BonesWriter:
         except KeyboardInterrupt:
             self.running = False
             return
+
         if key == -1:
+            if self.timeout():
+                self.blank_text(win)
             return
-        elif key == ord(' '):  # Space key
+        
+
+        if key == ord(' '):  # Space key
             self.live_word_counter()
             self.write_char(win, " ")
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
