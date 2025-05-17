@@ -112,6 +112,8 @@ class BonesWriter:
             stdscr.refresh()
 
     def curses_loop(self, stdscr):
+        stdscr.clear()
+        stdscr.refresh()
         stdscr.nodelay(1)   # Make getch() non-blocking
         stdscr.timeout(100) # Refresh every 100ms
 
