@@ -29,7 +29,7 @@ This is in a pre-alpha state.
   * [ ] Save statistics
   * [ ] Graph statistics
 * [ ] Daily streak tracker
-* [ ] Autotomatically blank screen if thinking too long
+* [x] Autotomatically blank screen if thinking too long
 * [ ] Hostage mode: do not release input controls until word or time goal is met
 * [ ] Backspace allowance
 * [ ] Resume session
