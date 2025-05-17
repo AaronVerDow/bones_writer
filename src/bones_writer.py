@@ -70,28 +70,7 @@ class BonesWriter:
         self.status_y -= gap + len(string)
         stdscr.addstr(0, self.status_y, string, curses.color_pair(GRAY_PAIR))
 
-    def inner_loop(self, stdscr, win):
-        try:
-            key = win.getch()
-        except KeyboardInterrupt:
-            self.running = False
-            return
-        if key == -1:
-            pass
-        elif key == ord(' '):  # Space key
-            self.live_word_counter()
-            self.write_char(win, " ")
-        elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
-            self.live_word_counter()
-            self.write_char(win, "\n")
-        elif 32 <= key <= 126:  # Printable ASCII characters
-            self.new_word = False
-            self.write_char(win, f"{chr(key)}")
-
-        # display status bar
-        # currently only updates during keypresses
-        # break out later
-
+    def update_status_bar(self, stdscr, win):
         delta = self.elapsed_seconds()
         if self.elapsed != delta:
             self.status_y = self.screen_width
@@ -111,11 +90,29 @@ class BonesWriter:
             win.move(cursor_y, cursor_x)
             stdscr.refresh()
 
+    def inner_loop(self, stdscr, win):
+        try:
+            key = win.getch()
+        except KeyboardInterrupt:
+            self.running = False
+            return
+        if key == -1:
+            return
+        elif key == ord(' '):  # Space key
+            self.live_word_counter()
+            self.write_char(win, " ")
+        elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
+            self.live_word_counter()
+            self.write_char(win, "\n")
+        elif 32 <= key <= 126:  # Printable ASCII characters
+            self.new_word = False
+            self.write_char(win, f"{chr(key)}")
+
     def curses_loop(self, stdscr):
         stdscr.clear()
         stdscr.refresh()
-        stdscr.nodelay(1)   # Make getch() non-blocking
-        stdscr.timeout(100) # Refresh every 100ms
+        
+        stdscr.timeout(50)
 
         curses.start_color()
         curses.init_color(GRAY_COLOR, GRAY_LEVEL, GRAY_LEVEL, GRAY_LEVEL)
@@ -126,12 +123,14 @@ class BonesWriter:
 
         win = self.make_win()
         win.scrollok(True)
+        win.nodelay(1)  # Make getch() non-blocking on writing window
 
         with open(self.filepath, "a") as outfile:
             # Is this bad practice?
             self.outfile = outfile
             while self.running:
                 self.inner_loop(stdscr, win)
+                self.update_status_bar(stdscr, win)
 
     def seconds(self, ns):
         # convert nanoseconds from time_ns to seconds
