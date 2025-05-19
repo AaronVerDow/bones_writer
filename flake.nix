@@ -16,7 +16,9 @@
           pytest
           pytest-cov
           pytest-mock
+          black
         ]))
+        pkgs.pre-commit
       ];
 
       shellHook = ''
