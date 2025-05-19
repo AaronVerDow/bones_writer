@@ -4,6 +4,7 @@ import humanize
 import os
 import shutil
 import readline
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -157,16 +158,29 @@ class BonesWriter:
             win.move(cursor_y, cursor_x)
             stdscr.refresh()
 
+    def sanitize_title(self, title):
+        # Replace spaces with underscores
+        title = title.replace(" ", "_")
+        # Remove any non-alphanumeric characters except underscores
+        title = re.sub(r"[^a-zA-Z0-9_]", "", title)
+        return title
+
     def move_file_to_category(self, category, title):
+        # Sanitize the category name
+        sanitized_category = self.sanitize_title(category)
+
         # Create category directory if it doesn't exist
-        category_dir = Path.joinpath(self.dir, category)
+        category_dir = Path.joinpath(self.dir, sanitized_category)
         try:
             os.makedirs(category_dir)
         except FileExistsError:
             pass
 
-        # Create new filename with title
-        new_filename = f"{self.filename[:-4]}_{title}.Rmd"
+        # Sanitize the title for the filename
+        sanitized_title = self.sanitize_title(title)
+
+        # Create new filename with sanitized title
+        new_filename = f"{self.filename[:-4]}_{sanitized_title}.Rmd"
         new_filepath = Path.joinpath(category_dir, new_filename)
 
         # Move the file
