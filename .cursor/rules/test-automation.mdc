@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Test Automation Guide
+
+## Overview
+This rule defines how tests should be run and issues should be fixed automatically in the project using Nix.
+
+## Environment Setup
+- The project uses Nix for dependency management
+- Required packages are defined in `flake.nix`
+- Development environment can be entered using `nix develop`
+
+## Test Execution
+- After each file change, automatically run the test suite using pytest
+- Tests should be run in the background to avoid blocking development
+- Test results should be displayed in a non-intrusive way
+- Use `nix develop` to ensure all dependencies are available
+
+## Issue Resolution
+When test failures occur:
+1. First, analyze the test output to understand the failure
+2. Check for common issues:
+   - Syntax errors
+   - Import errors
+   - Type mismatches
+   - Logic errors
+3. Apply fixes in this order:
+   - Fix syntax errors first
+   - Resolve import issues
+   - Address type mismatches
+   - Fix logical errors
+4. After applying fixes, re-run the tests to verify the solution
+
+## Test Files
+- Test files should be named `test_*.py` or `*_test.py`
+- Tests should be placed in a `tests` directory
+- Each test should be focused on a single piece of functionality
+
+## Best Practices
+- Keep tests independent of each other
+- Use meaningful test names that describe the behavior being tested
+- Include both positive and negative test cases
+- Mock external dependencies when appropriate
+- Use fixtures for common setup and teardown
+
+## Configuration
+The test automation is configured in `pytest.ini` to:
+- Run tests in parallel when possible
+- Show test coverage reports
+- Stop on first failure in development mode
+- Generate detailed logs for debugging
+
+## Continuous Integration
+- Tests should be run on every commit
+- Coverage reports should be generated and tracked
+- Failed tests should block merging to main branch
+- Use `nix develop` in CI to ensure consistent environment
