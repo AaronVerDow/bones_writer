@@ -2,6 +2,7 @@ import curses
 import time
 import humanize
 import os
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -144,6 +145,49 @@ class BonesWriter:
             win.move(cursor_y, cursor_x)
             stdscr.refresh()
 
+    def move_file_to_category(self, category, title):
+        # Create category directory if it doesn't exist
+        category_dir = Path.joinpath(self.dir, category)
+        try:
+            os.makedirs(category_dir)
+        except FileExistsError:
+            pass
+
+        # Create new filename with title
+        new_filename = f"{self.filename[:-4]}_{title}.txt"
+        new_filepath = Path.joinpath(category_dir, new_filename)
+
+        # Move the file
+        shutil.move(self.filepath, new_filepath)
+        self.filepath = new_filepath
+
+    def cleanup(self):
+        diff_seconds = self.elapsed_seconds()
+        human_readable = humanize.precisedelta(diff_seconds)
+        print(f"Session time: {human_readable}")
+
+        word_count = 0
+        with open(self.filepath, "r") as file:
+            for line in file:
+                words = line.split()
+                word_count += len(words)
+
+        print(f"Words: {word_count}")
+
+        wpm = int(word_count / (diff_seconds / 60.0))
+        print(f"WPM: {wpm}")
+
+        # Prompt for category and title
+        print("\nPlease enter details for your writing:")
+        category = input("Category: ").strip()
+        title = input("Title: ").strip()
+
+        if category and title:
+            self.move_file_to_category(category, title)
+            print(f"\nFile moved to: {self.filepath}")
+        else:
+            print("\nNo category or title provided. File remains in original location.")
+
     def inner_loop(self, stdscr, win):
         try:
             key = win.getch()
@@ -198,23 +242,6 @@ class BonesWriter:
         now = time.time_ns()
         diff_ns = now - self.start_time
         return self.seconds(diff_ns)
-
-    def cleanup(self):
-        diff_seconds = self.elapsed_seconds()
-        human_readable = humanize.precisedelta(diff_seconds)
-        print(f"Session time: {human_readable}")
-
-        word_count = 0
-        with open(self.filepath, "r") as file:
-            for line in file:
-                words = line.split()
-                word_count += len(words)
-
-        print(f"Words: {word_count}")
-
-        wpm = int(word_count / (diff_seconds / 60.0))
-
-        print(f"WPM: {wpm}")
 
     def main(self):
         curses.wrapper(self.curses_loop)
