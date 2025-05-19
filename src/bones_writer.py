@@ -6,6 +6,7 @@ import shutil
 import readline
 import re
 import typer
+import yaml
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -18,6 +19,34 @@ GRAY_COLOR = 100
 
 # Timeout in seconds before blanking the text
 BLANK_TIMEOUT = 5.0
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "directory": str(Path.joinpath(Path.home(), "Documents", "bones")),
+    "gray_level": GRAY_LEVEL,
+    "blank_timeout": BLANK_TIMEOUT,
+}
+
+
+def load_config(config_path: Path = None) -> dict:
+    """Load configuration from file or return defaults if not found."""
+    if config_path is None:
+        config_path = Path.joinpath(
+            Path.home(), ".config", "bones_writer", "config.yaml"
+        )
+
+    try:
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+            return {**DEFAULT_CONFIG, **config} if config else DEFAULT_CONFIG
+    except (FileNotFoundError, yaml.YAMLError):
+        # Create config directory if it doesn't exist
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        # Write default config
+        with open(config_path, "w") as f:
+            yaml.dump(DEFAULT_CONFIG, f)
+        return DEFAULT_CONFIG
+
 
 app = typer.Typer()
 
@@ -34,14 +63,18 @@ class CategoryCompleter:
 
 
 class BonesWriter:
-    def __init__(self, directory: Path = None):
+    def __init__(self, directory: Path = None, config_path: Path = None):
         self.running = True
         now = datetime.now()
 
-        if directory is None:
-            self.dir = Path.joinpath(Path.home(), "Documents", "bones")
-        else:
+        # Load configuration
+        self.config = load_config(config_path)
+
+        # Override config directory if explicitly provided
+        if directory is not None:
             self.dir = directory
+        else:
+            self.dir = Path(self.config["directory"])
 
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".Rmd"
         self.filepath = Path.joinpath(self.dir, self.filename)
@@ -304,8 +337,8 @@ class BonesWriter:
 
 
 @app.command()
-def main(directory: Path = None):
-    bonesWriter = BonesWriter(directory)
+def main(directory: Path = None, config: Path = None):
+    bonesWriter = BonesWriter(directory, config)
     bonesWriter.main()
 
 
