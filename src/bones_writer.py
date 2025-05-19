@@ -157,7 +157,7 @@ class BonesWriter:
         self.blank = False
 
     def timeout(self):
-        return time.time() - self.last_keypress_time > self.config
+        return time.time() - self.last_keypress_time > self.config["blank_timeout"]
 
     def make_win(self):
         # other things will depend on this, not sure if this is the safest location
@@ -317,7 +317,12 @@ class BonesWriter:
         stdscr.timeout(50)
 
         curses.start_color()
-        curses.init_color(GRAY_COLOR, GRAY_LEVEL, GRAY_LEVEL, GRAY_LEVEL)
+        curses.init_color(
+            GRAY_COLOR,
+            self.config["stats_brightness"],
+            self.config["stats_brightness"],
+            self.config["stats_brightness"],
+        )
         curses.init_pair(GRAY_PAIR, GRAY_COLOR, curses.COLOR_BLACK)
 
         # Is this bad practice?
