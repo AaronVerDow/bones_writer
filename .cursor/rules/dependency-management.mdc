@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Python Dependency Management
+
+## Source of Truth
+[flake.nix](mdc:flake.nix) is the authoritative source for Python dependencies in this project. Any changes to Python package requirements must be made in `flake.nix` first.
+
+## Synchronization Requirements
+[requirements.txt](mdc:requirements.txt) must be kept in sync with the Python packages specified in `flake.nix`. When changes are made to Python dependencies in `flake.nix`, the following rules apply:
+
+1. All Python packages listed in `flake.nix` must be reflected in `requirements.txt`
+2. Version constraints in `requirements.txt` should be preserved when they exist
+3. New packages added to `flake.nix` should be added to `requirements.txt` without version constraints unless specifically required
+
+## Development Workflow
+When adding or modifying Python dependencies:
+1. Update the dependencies in `flake.nix` first
+2. Synchronize the changes to `requirements.txt`
+3. Test the development environment to ensure all dependencies are properly installed
+
+This ensures consistency between the Nix development environment and pip-based installations.
