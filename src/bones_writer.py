@@ -63,18 +63,26 @@ class CategoryCompleter:
 
 
 class BonesWriter:
-    def __init__(self, directory: Path = None, config_path: Path = None):
+    def __init__(
+        self,
+        directory: Path = None,
+        config_path: Path = None,
+        blank_timeout: float = None,
+    ):
         self.running = True
         now = datetime.now()
 
         # Load configuration
         self.config = load_config(config_path)
 
-        # Override config directory if explicitly provided
+        # Override config values if explicitly provided
         if directory is not None:
             self.dir = directory
         else:
             self.dir = Path(self.config["directory"])
+
+        if blank_timeout is not None:
+            self.config["blank_timeout"] = blank_timeout
 
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".Rmd"
         self.filepath = Path.joinpath(self.dir, self.filename)
@@ -145,7 +153,9 @@ class BonesWriter:
         self.blank = False
 
     def timeout(self):
-        return time.time() - self.last_keypress_time > BLANK_TIMEOUT
+        if self.config["blank_timeout"] == 0:
+            return False
+        return time.time() - self.last_keypress_time > self.config["blank_timeout"]
 
     def make_win(self):
         # other things will depend on this, not sure if this is the safest location
@@ -337,9 +347,18 @@ class BonesWriter:
 
 
 @app.command()
-def main(directory: Path = None, config: Path = None):
-    bonesWriter = BonesWriter(directory, config)
-    bonesWriter.main()
+def main(
+    directory: Path = None,
+    config: Path = None,
+    blank_timeout: float = typer.Option(
+        None, help="Timeout in seconds before blanking the text"
+    ),
+):
+    """Start the bones writer application."""
+    writer = BonesWriter(
+        directory=directory, config_path=config, blank_timeout=blank_timeout
+    )
+    writer.main()
 
 
 if __name__ == "__main__":
