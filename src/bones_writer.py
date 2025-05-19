@@ -10,8 +10,8 @@ import yaml
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# adjust for darkness of live stats, 0-1000
-STATS_BRIGHTNESS = 200
+# adjust for darknes of live stats, 0-1000
+GRAY_LEVEL = 200
 
 # required by curses to define custom color, changes nothing
 GRAY_PAIR = 1
@@ -23,7 +23,7 @@ BLANK_TIMEOUT = 5.0
 # Default configuration
 DEFAULT_CONFIG = {
     "directory": str(Path.joinpath(Path.home(), "Documents", "bones")),
-    "stats_brightness": STATS_BRIGHTNESS,
+    "gray_level": GRAY_LEVEL,
     "blank_timeout": BLANK_TIMEOUT,
 }
 
@@ -157,9 +157,7 @@ class BonesWriter:
         self.blank = False
 
     def timeout(self):
-        if self.config["blank_timeout"] == 0:
-            return False
-        return time.time() - self.last_keypress_time > self.config["blank_timeout"]
+        return time.time() - self.last_keypress_time > self.config
 
     def make_win(self):
         # other things will depend on this, not sure if this is the safest location
@@ -313,21 +311,17 @@ class BonesWriter:
             self.write_char(win, f"{chr(key)}")
 
     def curses_loop(self, stdscr):
-        self.stdscr = stdscr
-        curses.start_color()
-        curses.use_default_colors()
-        curses.init_pair(GRAY_PAIR, GRAY_COLOR, -1)
-        curses.init_color(
-            GRAY_COLOR,
-            self.config["stats_brightness"],
-            self.config["stats_brightness"],
-            self.config["stats_brightness"],
-        )
-
         stdscr.clear()
         stdscr.refresh()
 
         stdscr.timeout(50)
+
+        curses.start_color()
+        curses.init_color(GRAY_COLOR, GRAY_LEVEL, GRAY_LEVEL, GRAY_LEVEL)
+        curses.init_pair(GRAY_PAIR, GRAY_COLOR, curses.COLOR_BLACK)
+
+        # Is this bad practice?
+        self.stdscr = stdscr
 
         win = self.make_win()
         win.scrollok(True)
