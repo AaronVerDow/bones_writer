@@ -38,7 +38,7 @@ class BonesWriter:
         self.margin_sides = 6
 
         # used to track when new words start for live word count
-        self.new_word = None
+        self.in_word = False
         self.live_word_count = 0
 
         # Text blanking related variables
@@ -106,12 +106,15 @@ class BonesWriter:
 
         return win
 
-    def live_word_counter(self):
-        if self.new_word is True:
-            return
-        if self.new_word is not None:
+    # True - within new word
+    # False - within whitespace
+    def end_word(self):
+        self.in_word = False
+
+    def start_word(self):
+        if self.in_word is False:
             self.live_word_count += 1
-        self.new_word = True
+        self.in_word = True
 
     def status_bar(self, stdscr, raw_string, gap):
         string = str(raw_string)
@@ -154,13 +157,13 @@ class BonesWriter:
         
 
         if key == ord(' '):  # Space key
-            self.live_word_counter()
+            self.end_word()
             self.write_char(win, " ")
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
-            self.live_word_counter()
+            self.end_word()
             self.write_char(win, "\n")
         elif 32 <= key <= 126:  # Printable ASCII characters
-            self.new_word = False
+            self.start_word()
             self.write_char(win, f"{chr(key)}")
 
     def curses_loop(self, stdscr):

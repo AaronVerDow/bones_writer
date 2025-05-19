@@ -13,6 +13,9 @@
         (pkgs.python3.withPackages (ps: with ps; [
           pynput
           humanize
+          pytest
+          pytest-cov
+          pytest-mock
         ]))
       ];
 
