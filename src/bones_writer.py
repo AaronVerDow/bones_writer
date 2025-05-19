@@ -3,6 +3,7 @@ import time
 import humanize
 import os
 import shutil
+import readline
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -15,6 +16,17 @@ GRAY_COLOR = 100
 
 # Timeout in seconds before blanking the text
 BLANK_TIMEOUT = 5.0
+
+
+class CategoryCompleter:
+    def __init__(self, categories):
+        self.categories = categories
+
+    def complete(self, text, state):
+        options = [i for i in self.categories if i.startswith(text)]
+        if state < len(options):
+            return options[state]
+        return None
 
 
 class BonesWriter:
@@ -177,16 +189,25 @@ class BonesWriter:
         wpm = int(word_count / (diff_seconds / 60.0))
         print(f"WPM: {wpm}")
 
+        # Get existing categories
+        categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
+
+        # Set up tab completion
+        completer = CategoryCompleter(categories)
+        readline.set_completer(completer.complete)
+        readline.parse_and_bind("tab: complete")
+
         # Prompt for category and title
         print("\nPlease enter details for your writing:")
         category = input("Category: ").strip()
         title = input("Title: ").strip()
 
-        if category and title:
-            self.move_file_to_category(category, title)
-            print(f"\nFile moved to: {self.filepath}")
-        else:
-            print("\nNo category or title provided. File remains in original location.")
+        if not category:
+            category = "uncategorized"
+        if not title:
+            title = "untitled"
+        self.move_file_to_category(category, title)
+        print(f"\nFile written to: {self.filepath}")
 
     def inner_loop(self, stdscr, win):
         try:
