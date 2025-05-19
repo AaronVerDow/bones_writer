@@ -5,6 +5,7 @@ import os
 import shutil
 import readline
 import re
+import typer
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -17,6 +18,8 @@ GRAY_COLOR = 100
 
 # Timeout in seconds before blanking the text
 BLANK_TIMEOUT = 5.0
+
+app = typer.Typer()
 
 
 class CategoryCompleter:
@@ -31,11 +34,14 @@ class CategoryCompleter:
 
 
 class BonesWriter:
-    def __init__(self):
+    def __init__(self, directory: Path = None):
         self.running = True
         now = datetime.now()
 
-        self.dir = Path.joinpath(Path.home(), "Documents", "bones")
+        if directory is None:
+            self.dir = Path.joinpath(Path.home(), "Documents", "bones")
+        else:
+            self.dir = directory
 
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".Rmd"
         self.filepath = Path.joinpath(self.dir, self.filename)
@@ -297,6 +303,11 @@ class BonesWriter:
         self.cleanup()
 
 
-if __name__ == "__main__":
-    bonesWriter = BonesWriter()
+@app.command()
+def main(directory: Path = None):
+    bonesWriter = BonesWriter(directory)
     bonesWriter.main()
+
+
+if __name__ == "__main__":
+    app()

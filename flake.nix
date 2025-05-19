@@ -17,6 +17,7 @@
           pytest-cov
           pytest-mock
           black
+          typer
         ]))
         pkgs.pre-commit
       ];
