@@ -6,14 +6,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # adjust for darknes of live stats, 0-1000
-GRAY_LEVEL=200  
+GRAY_LEVEL = 200
 
 # required by curses to define custom color, changes nothing
-GRAY_PAIR=1
-GRAY_COLOR=100
+GRAY_PAIR = 1
+GRAY_COLOR = 100
 
 # Timeout in seconds before blanking the text
-BLANK_TIMEOUT = 3.0
+BLANK_TIMEOUT = 5.0
+
 
 class BonesWriter:
     def __init__(self):
@@ -50,7 +51,7 @@ class BonesWriter:
 
     def write_char(self, win, char):
         self.outfile.write(char)
-        
+
         y, x = win.getyx()
         self.text_content.append((char, y, x))
 
@@ -58,11 +59,11 @@ class BonesWriter:
             self.show_text(win)
 
         self.last_keypress_time = time.time()
-        
+
         win.addstr(char)
         win.refresh()
-        
-        if char == '\n':
+
+        if char == "\n":
             self.current_line += 1
             self.current_col = 0
         else:
@@ -92,7 +93,7 @@ class BonesWriter:
 
     def timeout(self):
         return time.time() - self.last_keypress_time > BLANK_TIMEOUT
-        
+
     def make_win(self):
         # other things will depend on this, not sure if this is the safest location
         self.screen_height, self.screen_width = self.stdscr.getmaxyx()
@@ -134,7 +135,7 @@ class BonesWriter:
             except ZeroDivisionError:
                 wpm = 0
             cursor_y, cursor_x = win.getyx()
-            stdscr.addstr(0, 0, ' ' * self.screen_width)
+            stdscr.addstr(0, 0, " " * self.screen_width)
             self.status_bar(stdscr, timer, 2)
             self.status_bar(stdscr, self.live_word_count, 2)
             self.status_bar(stdscr, "Words:", 1)
@@ -154,9 +155,8 @@ class BonesWriter:
             if self.timeout():
                 self.blank_text(win)
             return
-        
 
-        if key == ord(' '):  # Space key
+        if key == ord(" "):  # Space key
             self.end_word()
             self.write_char(win, " ")
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
@@ -169,7 +169,7 @@ class BonesWriter:
     def curses_loop(self, stdscr):
         stdscr.clear()
         stdscr.refresh()
-        
+
         stdscr.timeout(50)
 
         curses.start_color()
@@ -212,7 +212,7 @@ class BonesWriter:
 
         print(f"Words: {word_count}")
 
-        wpm = int(word_count / ( diff_seconds / 60.0 ))
+        wpm = int(word_count / (diff_seconds / 60.0))
 
         print(f"WPM: {wpm}")
 
@@ -220,6 +220,7 @@ class BonesWriter:
         curses.wrapper(self.curses_loop)
         self.cleanup()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     bonesWriter = BonesWriter()
     bonesWriter.main()
