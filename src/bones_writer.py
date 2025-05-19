@@ -10,8 +10,8 @@ import yaml
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# adjust for darknes of live stats, 0-1000
-GRAY_LEVEL = 200
+# adjust for darkness of live stats, 0-1000
+STATS_BRIGHTNESS = 200
 
 # required by curses to define custom color, changes nothing
 GRAY_PAIR = 1
@@ -23,7 +23,7 @@ BLANK_TIMEOUT = 5.0
 # Default configuration
 DEFAULT_CONFIG = {
     "directory": str(Path.joinpath(Path.home(), "Documents", "bones")),
-    "gray_level": GRAY_LEVEL,
+    "stats_brightness": STATS_BRIGHTNESS,
     "blank_timeout": BLANK_TIMEOUT,
 }
 
@@ -68,6 +68,7 @@ class BonesWriter:
         directory: Path = None,
         config_path: Path = None,
         blank_timeout: float = None,
+        stats_brightness: int = None,
     ):
         self.running = True
         now = datetime.now()
@@ -83,6 +84,9 @@ class BonesWriter:
 
         if blank_timeout is not None:
             self.config["blank_timeout"] = blank_timeout
+
+        if stats_brightness is not None:
+            self.config["stats_brightness"] = stats_brightness
 
         self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".Rmd"
         self.filepath = Path.joinpath(self.dir, self.filename)
@@ -309,17 +313,21 @@ class BonesWriter:
             self.write_char(win, f"{chr(key)}")
 
     def curses_loop(self, stdscr):
+        self.stdscr = stdscr
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(GRAY_PAIR, GRAY_COLOR, -1)
+        curses.init_color(
+            GRAY_COLOR,
+            self.config["stats_brightness"],
+            self.config["stats_brightness"],
+            self.config["stats_brightness"],
+        )
+
         stdscr.clear()
         stdscr.refresh()
 
         stdscr.timeout(50)
-
-        curses.start_color()
-        curses.init_color(GRAY_COLOR, GRAY_LEVEL, GRAY_LEVEL, GRAY_LEVEL)
-        curses.init_pair(GRAY_PAIR, GRAY_COLOR, curses.COLOR_BLACK)
-
-        # Is this bad practice?
-        self.stdscr = stdscr
 
         win = self.make_win()
         win.scrollok(True)
@@ -353,10 +361,19 @@ def main(
     blank_timeout: float = typer.Option(
         None, help="Timeout in seconds before blanking the text"
     ),
+    stats_brightness: int = typer.Option(
+        None,
+        help="Brightness level for stats display (0-1000)",
+        min=0,
+        max=1000,
+    ),
 ):
     """Start the bones writer application."""
     writer = BonesWriter(
-        directory=directory, config_path=config, blank_timeout=blank_timeout
+        directory=directory,
+        config_path=config,
+        blank_timeout=blank_timeout,
+        stats_brightness=stats_brightness,
     )
     writer.main()
 
