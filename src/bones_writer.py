@@ -158,16 +158,16 @@ class BonesWriter:
             win.move(cursor_y, cursor_x)
             stdscr.refresh()
 
-    def sanitize_title(self, title):
+    def sanitize_path(self, title):
         # Replace spaces with underscores
         title = title.replace(" ", "_")
         # Remove any non-alphanumeric characters except underscores
         title = re.sub(r"[^a-zA-Z0-9_]", "", title)
         return title
 
-    def move_file_to_category(self, category, title):
+    def rename_file(self, category, title):
         # Sanitize the category name
-        sanitized_category = self.sanitize_title(category)
+        sanitized_category = self.sanitize_path(category)
 
         # Create category directory if it doesn't exist
         category_dir = Path.joinpath(self.dir, sanitized_category)
@@ -177,7 +177,7 @@ class BonesWriter:
             pass
 
         # Sanitize the title for the filename
-        sanitized_title = self.sanitize_title(title)
+        sanitized_title = self.sanitize_path(title)
 
         # Create new filename with sanitized title
         new_filename = f"{self.filename[:-4]}_{sanitized_title}.Rmd"
@@ -203,35 +203,41 @@ class BonesWriter:
         wpm = int(word_count / (diff_seconds / 60.0))
         print(f"WPM: {wpm}")
 
-        # Get existing categories
-        categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
+        self.name_file()
 
-        # Set up tab completion
-        completer = CategoryCompleter(categories)
-        readline.set_completer(completer.complete)
-        readline.parse_and_bind("tab: complete")
-
-        # Prompt for category and title
-        print("\nPlease enter details for your writing:")
-        category = input("Category: ").strip()
-        title = input("Title: ").strip()
-
-        if not category:
-            category = "uncategorized"
-        if not title:
-            title = "untitled"
-
+    def add_title(self, path, title):
         # Add title to the top of the file
-        with open(self.filepath, "r") as file:
+        # There may be a more efficient method
+
+        with open(path, "r") as file:
             content = file.read()
 
         with open(self.filepath, "w") as file:
             file.write(f"## {title}\n\n{content}")
 
-        self.move_file_to_category(category, title)
+    def name_file(self):
+
+        # Set up tab completion for categories
+        categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
+        completer = CategoryCompleter(categories)
+        readline.set_completer(completer.complete)
+        readline.parse_and_bind("tab: complete")
+
+        print("\nPlease enter details for your writing:")
+        category = input("Category: ").strip()
+        if not category:
+            category = "uncategorized"
+
+        title = input("Title: ").strip()
+        if not title:
+            title = "untitled"
+
+        self.add_title(self.filepath, title)
+
+        self.rename_file(category, title)
         print(f"\nFile written to: {self.filepath}")
 
-    def inner_loop(self, stdscr, win):
+    def inner_loop(self, win):
         try:
             key = win.getch()
         except KeyboardInterrupt:
@@ -274,7 +280,7 @@ class BonesWriter:
             # Is this bad practice?
             self.outfile = outfile
             while self.running:
-                self.inner_loop(stdscr, win)
+                self.inner_loop(win)
                 self.update_status_bar(stdscr, win)
 
     def seconds(self, ns):
