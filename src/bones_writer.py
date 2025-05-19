@@ -36,7 +36,7 @@ class BonesWriter:
 
         self.dir = Path.joinpath(Path.home(), "Documents", "bones")
 
-        self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".txt"
+        self.filename = now.strftime("%Y-%m-%d_%H-%M-%S") + ".Rmd"
         self.filepath = Path.joinpath(self.dir, self.filename)
 
         # I am tracking sub-second time in case I want to do something with average time per keypress
@@ -166,7 +166,7 @@ class BonesWriter:
             pass
 
         # Create new filename with title
-        new_filename = f"{self.filename[:-4]}_{title}.txt"
+        new_filename = f"{self.filename[:-4]}_{title}.Rmd"
         new_filepath = Path.joinpath(category_dir, new_filename)
 
         # Move the file
@@ -206,6 +206,14 @@ class BonesWriter:
             category = "uncategorized"
         if not title:
             title = "untitled"
+
+        # Add title to the top of the file
+        with open(self.filepath, "r") as file:
+            content = file.read()
+
+        with open(self.filepath, "w") as file:
+            file.write(f"## {title}\n\n{content}")
+
         self.move_file_to_category(category, title)
         print(f"\nFile written to: {self.filepath}")
 
