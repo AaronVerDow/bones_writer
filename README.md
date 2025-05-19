@@ -22,18 +22,18 @@ This is in a pre-alpha state.
     * [x] Total words
     * [x] Time per session
     * [x] Words per minute
-    * [ ] % mispelled words
+    * [x] % mispelled words
     * [ ] % grammar errors per sentance
   * [x] Show stats on session completion
   * [x] Live tracker
   * [ ] Save statistics
   * [ ] Graph statistics
 * [ ] Daily streak tracker
-* [x] Autotomatically blank screen if thinking too long
+* [x] Automatically blank screen if thinking too long
 * [ ] Hostage mode: do not release input controls until word or time goal is met
 * [ ] Backspace allowance
 * [ ] Resume session
-* [ ] Change output directory
+* [x] Change output directory
 * Builds
   * [ ] Python package
   * [ ] Nix package

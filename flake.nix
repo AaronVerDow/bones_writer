@@ -18,6 +18,7 @@
           pytest-mock
           black
           typer
+          pyspellchecker
         ]))
         pkgs.pre-commit
       ];

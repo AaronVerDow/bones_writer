@@ -7,6 +7,7 @@ import readline
 import re
 import typer
 import yaml
+from spellchecker import SpellChecker
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -238,6 +239,30 @@ class BonesWriter:
         shutil.move(self.filepath, new_filepath)
         self.filepath = new_filepath
 
+    def check_spelling(self) -> float:
+        """Check the spelling of words in the file and return the percentage of correctly spelled words."""
+        spell = SpellChecker()
+
+        # Read the file content
+        with open(self.filepath, "r") as file:
+            content = file.read()
+
+        # Split content into words and filter out non-word characters
+        words = re.findall(r"\b\w+\b", content.lower())
+
+        if not words:
+            return 100.0  # Return 100% if no words found
+
+        # Find misspelled words
+        misspelled = spell.unknown(words)
+
+        # Calculate percentage of correctly spelled words
+        total_words = len(words)
+        correct_words = total_words - len(misspelled)
+        percentage = (correct_words / total_words) * 100
+
+        return percentage
+
     def cleanup(self):
         diff_seconds = self.elapsed_seconds()
         human_readable = humanize.precisedelta(diff_seconds)
@@ -253,6 +278,10 @@ class BonesWriter:
 
         wpm = int(word_count / (diff_seconds / 60.0))
         print(f"WPM: {wpm}")
+
+        # Add spell checking results
+        spelling_percentage = self.check_spelling()
+        print(f"Spelling accuracy: {spelling_percentage:.1f}%")
 
         self.name_file()
 
