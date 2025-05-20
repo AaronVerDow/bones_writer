@@ -10,26 +10,27 @@ import yaml
 from spellchecker import SpellChecker
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Dict, Any
 
 # adjust for darknes of live stats, 0-1000
-GRAY_LEVEL = 200
+GRAY_LEVEL: int = 200
 
 # required by curses to define custom color, changes nothing
-GRAY_PAIR = 1
-GRAY_COLOR = 100
+GRAY_PAIR: int = 1
+GRAY_COLOR: int = 100
 
 # Timeout in seconds before blanking the text
-BLANK_TIMEOUT = 5.0
+BLANK_TIMEOUT: float = 5.0
 
 # Default configuration
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: Dict[str, Any] = {
     "directory": str(Path.joinpath(Path.home(), "Documents", "bones")),
     "gray_level": GRAY_LEVEL,
     "blank_timeout": BLANK_TIMEOUT,
 }
 
 
-def load_config(config_path: Path = None) -> dict:
+def load_config(config_path: Path | None = None) -> Dict[str, Any]:
     """Load configuration from file or return defaults if not found."""
     if config_path is None:
         config_path = Path.joinpath(
@@ -53,10 +54,10 @@ app = typer.Typer()
 
 
 class CategoryCompleter:
-    def __init__(self, categories):
+    def __init__(self, categories: list[str]) -> None:
         self.categories = categories
 
-    def complete(self, text, state):
+    def complete(self, text: str, state: int) -> str | None:
         options = [i for i in self.categories if i.startswith(text)]
         if state < len(options):
             return options[state]
@@ -66,11 +67,11 @@ class CategoryCompleter:
 class BonesWriter:
     def __init__(
         self,
-        directory: Path = None,
-        config_path: Path = None,
-        blank_timeout: float = None,
-        stats_brightness: int = None,
-    ):
+        directory: Path | None = None,
+        config_path: Path | None = None,
+        blank_timeout: float | None = None,
+        stats_brightness: int | None = None,
+    ) -> None:
         self.running = True
         now = datetime.now()
 
@@ -111,11 +112,11 @@ class BonesWriter:
         # Text blanking related variables
         self.last_keypress_time = time.time()
         self.blank = False
-        self.text_content = []
+        self.text_content: list[tuple[str, int, int]] = []
         self.current_line = 0
         self.current_col = 0
 
-    def write_char(self, win, char):
+    def write_char(self, win: curses.window, char: str) -> None:
         self.outfile.write(char)
 
         y, x = win.getyx()
@@ -135,7 +136,7 @@ class BonesWriter:
         else:
             self.current_col += 1
 
-    def blank_text(self, win):
+    def blank_text(self, win: curses.window) -> None:
         # Only run once
         if self.blank:
             return
@@ -145,7 +146,7 @@ class BonesWriter:
         win.move(cursor_y, cursor_x)  # Restore cursor position
         self.blank = True
 
-    def show_text(self, win):
+    def show_text(self, win: curses.window) -> None:
         cursor_y, cursor_x = win.getyx()  # Save cursor position
         win.clear()
         for char, y, x in self.text_content:
@@ -157,10 +158,10 @@ class BonesWriter:
         win.move(cursor_y, cursor_x)  # Restore cursor position
         self.blank = False
 
-    def timeout(self):
+    def timeout(self) -> bool:
         return time.time() - self.last_keypress_time > self.config["blank_timeout"]
 
-    def make_win(self):
+    def make_win(self) -> curses.window:
         # other things will depend on this, not sure if this is the safest location
         self.screen_height, self.screen_width = self.stdscr.getmaxyx()
 
@@ -173,24 +174,22 @@ class BonesWriter:
 
         return win
 
-    # True - within new word
-    # False - within whitespace
-    def end_word(self):
+    def end_word(self) -> None:
         self.in_word = False
 
-    def start_word(self):
+    def start_word(self) -> None:
         if self.in_word is False:
             self.live_word_count += 1
         self.in_word = True
 
-    def status_bar(self, stdscr, raw_string, gap):
+    def status_bar(self, stdscr: curses.window, raw_string: str | int, gap: int) -> None:
         string = str(raw_string)
 
         # start from top right stacking strings
         self.status_y -= gap + len(string)
         stdscr.addstr(0, self.status_y, string, curses.color_pair(GRAY_PAIR))
 
-    def update_status_bar(self, stdscr, win):
+    def update_status_bar(self, stdscr: curses.window, win: curses.window) -> None:
         delta = self.elapsed_seconds()
         if self.elapsed != delta:
             self.status_y = self.screen_width
@@ -210,14 +209,14 @@ class BonesWriter:
             win.move(cursor_y, cursor_x)
             stdscr.refresh()
 
-    def sanitize_path(self, title):
+    def sanitize_path(self, title: str) -> str:
         # Replace spaces with underscores
         title = title.replace(" ", "_")
         # Remove any non-alphanumeric characters except underscores
         title = re.sub(r"[^a-zA-Z0-9_]", "", title)
         return title
 
-    def rename_file(self, category, title):
+    def rename_file(self, category: str, title: str) -> None:
         # Sanitize the category name
         sanitized_category = self.sanitize_path(category)
 
@@ -263,7 +262,7 @@ class BonesWriter:
 
         return percentage
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         diff_seconds = self.elapsed_seconds()
         human_readable = humanize.precisedelta(diff_seconds)
         print(f"Session time: {human_readable}")
@@ -285,7 +284,7 @@ class BonesWriter:
 
         self.name_file()
 
-    def add_title(self, path, title):
+    def add_title(self, path: Path, title: str) -> None:
         # Add title to the top of the file
         # There may be a more efficient method
 
@@ -295,8 +294,7 @@ class BonesWriter:
         with open(self.filepath, "w") as file:
             file.write(f"## {title}\n\n{content}")
 
-    def name_file(self):
-
+    def name_file(self) -> None:
         # Set up tab completion for categories
         categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
         completer = CategoryCompleter(categories)
@@ -317,7 +315,7 @@ class BonesWriter:
         self.rename_file(category, title)
         print(f"\nFile written to: {self.filepath}")
 
-    def inner_loop(self, win):
+    def inner_loop(self, win: curses.window) -> None:
         try:
             key = win.getch()
         except KeyboardInterrupt:
@@ -339,7 +337,7 @@ class BonesWriter:
             self.start_word()
             self.write_char(win, f"{chr(key)}")
 
-    def curses_loop(self, stdscr):
+    def curses_loop(self, stdscr: curses.window) -> None:
         stdscr.clear()
         stdscr.refresh()
 
@@ -368,34 +366,34 @@ class BonesWriter:
                 self.inner_loop(win)
                 self.update_status_bar(stdscr, win)
 
-    def seconds(self, ns):
+    def seconds(self, ns: int) -> int:
         # convert nanoseconds from time_ns to seconds
         return int(ns / 1e9)
 
-    def elapsed_seconds(self):
+    def elapsed_seconds(self) -> int:
         now = time.time_ns()
         diff_ns = now - self.start_time
         return self.seconds(diff_ns)
 
-    def main(self):
+    def main(self) -> None:
         curses.wrapper(self.curses_loop)
         self.cleanup()
 
 
 @app.command()
 def main(
-    directory: Path = None,
-    config: Path = None,
-    blank_timeout: float = typer.Option(
+    directory: Path | None = None,
+    config: Path | None = None,
+    blank_timeout: float | None = typer.Option(
         None, help="Timeout in seconds before blanking the text"
     ),
-    stats_brightness: int = typer.Option(
+    stats_brightness: int | None = typer.Option(
         None,
         help="Brightness level for stats display (0-1000)",
         min=0,
         max=1000,
     ),
-):
+) -> None:
     """Start the bones writer application."""
     writer = BonesWriter(
         directory=directory,
