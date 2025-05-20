@@ -19,6 +19,7 @@
           black
           typer
           pyspellchecker
+          tinydb
         ]))
         pkgs.pre-commit
       ];

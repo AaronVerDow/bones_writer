@@ -11,47 +11,28 @@ from spellchecker import SpellChecker
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
+from tinydb import TinyDB, Query
 
-# adjust for darknes of live stats, 0-1000
-GRAY_LEVEL: int = 200
 
+# Constants
 # required by curses to define custom color, changes nothing
 GRAY_PAIR: int = 1
 GRAY_COLOR: int = 100
 
-# Timeout in seconds before blanking the text
-BLANK_TIMEOUT: float = 5.0
+# Defaults
+# I don't know how I want to handle these yet.
+CONFIG_DIR: Path = Path.joinpath(Path.home(), ".config", "bones_writer")
+OUTPUT_DIR: Path = Path.joinpath(Path.home(), "Documents", "bones")
+CONFIG: Path = Path.joinpath(CONFIG_DIR, "config.yaml")
+BLANK_TIMEOUT: float = 5.0  # Timeout in seconds before blanking the text
+STATS_BRIGHTNESS: int = 200  # adjust for darknes of live stats, 0-1000
 
 # Default configuration
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "directory": str(Path.joinpath(Path.home(), "Documents", "bones")),
-    "gray_level": GRAY_LEVEL,
+    "directory": OUTPUT_DIR,
+    "stats_brightness": STATS_BRIGHTNESS,
     "blank_timeout": BLANK_TIMEOUT,
 }
-
-
-def load_config(config_path: Path | None = None) -> Dict[str, Any]:
-    """Load configuration from file or return defaults if not found."""
-    if config_path is None:
-        config_path = Path.joinpath(
-            Path.home(), ".config", "bones_writer", "config.yaml"
-        )
-
-    try:
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
-            return {**DEFAULT_CONFIG, **config} if config else DEFAULT_CONFIG
-    except (FileNotFoundError, yaml.YAMLError):
-        # Create config directory if it doesn't exist
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        # Write default config
-        with open(config_path, "w") as f:
-            yaml.dump(DEFAULT_CONFIG, f)
-        return DEFAULT_CONFIG
-
-
-app = typer.Typer()
-
 
 class CategoryCompleter:
     def __init__(self, categories: list[str]) -> None:
@@ -76,7 +57,14 @@ class BonesWriter:
         now = datetime.now()
 
         # Load configuration
-        self.config = load_config(config_path)
+        if config_path is None:
+            config_path = CONFIG
+        self.config = self.load_config(config_path)
+
+        # Initialize database
+        self.db_path = Path.joinpath(CONFIG_DIR, "writing_stats.json")
+        self.db = TinyDB(self.db_path)
+        self.stats_table = self.db.table("writing_sessions")
 
         # Override config values if explicitly provided
         if directory is not None:
@@ -115,6 +103,20 @@ class BonesWriter:
         self.text_content: list[tuple[str, int, int]] = []
         self.current_line = 0
         self.current_col = 0
+
+    def load_config(self, config_path: Path) -> Dict[str, Any]:
+        """Load configuration from file or return defaults if not found."""
+        try:
+            with open(config_path, "r") as f:
+                config = yaml.safe_load(f)
+                return {**DEFAULT_CONFIG, **config}
+        except (FileNotFoundError, yaml.YAMLError):
+            # Create config directory if it doesn't exist
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            # Write default config
+            with open(config_path, "w") as f:
+                yaml.dump(DEFAULT_CONFIG, f)
+            return DEFAULT_CONFIG
 
     def write_char(self, win: curses.window, char: str) -> None:
         self.outfile.write(char)
@@ -250,7 +252,7 @@ class BonesWriter:
         words = re.findall(r"\b\w+\b", content.lower())
 
         if not words:
-            return 100.0  # Return 100% if no words found
+            return 0.0  # Return 0% if no words found
 
         # Find misspelled words
         misspelled = spell.unknown(words)
@@ -265,7 +267,6 @@ class BonesWriter:
     def cleanup(self) -> None:
         diff_seconds = self.elapsed_seconds()
         human_readable = humanize.precisedelta(diff_seconds)
-        print(f"Session time: {human_readable}")
 
         word_count = 0
         with open(self.filepath, "r") as file:
@@ -273,16 +274,45 @@ class BonesWriter:
                 words = line.split()
                 word_count += len(words)
 
-        print(f"Words: {word_count}")
-
         wpm = int(word_count / (diff_seconds / 60.0))
-        print(f"WPM: {wpm}")
-
-        # Add spell checking results
         spelling_percentage = self.check_spelling()
+
+        print(f"Session time: {human_readable}")
+        print(f"Words: {word_count}")
+        print(f"WPM: {wpm}")
         print(f"Spelling accuracy: {spelling_percentage:.1f}%")
 
         self.name_file()
+
+        # Store session data in TinyDB
+        session_data = {
+            "timestamp": datetime.now().isoformat(),
+            "filepath": str(self.filepath),
+            "duration_seconds": diff_seconds,
+            "word_count": word_count,
+            "wpm": wpm,
+            "spelling_accuracy": spelling_percentage,
+        }
+        self.stats_table.insert(session_data)
+
+    def get_writing_stats(self) -> Dict[str, Any]:
+        """Get writing statistics from the database."""
+        sessions = self.stats_table.all()
+        if not sessions:
+            return {"total_sessions": 0, "total_words": 0, "total_time": 0, "average_wpm": 0, "average_spelling": 0}
+
+        total_words = sum(session["word_count"] for session in sessions)
+        total_time = sum(session["duration_seconds"] for session in sessions)
+        total_wpm = sum(session["wpm"] for session in sessions)
+        total_spelling = sum(session["spelling_accuracy"] for session in sessions)
+
+        return {
+            "total_sessions": len(sessions),
+            "total_words": total_words,
+            "total_time": total_time,
+            "average_wpm": total_wpm / len(sessions),
+            "average_spelling": total_spelling / len(sessions),
+        }
 
     def add_title(self, path: Path, title: str) -> None:
         # Add title to the top of the file
@@ -357,7 +387,7 @@ class BonesWriter:
 
         win = self.make_win()
         win.scrollok(True)
-        win.nodelay(1)  # Make getch() non-blocking on writing window
+        win.nodelay(True)  # Make getch() non-blocking on writing window
 
         with open(self.filepath, "a") as outfile:
             # Is this bad practice?
@@ -380,13 +410,14 @@ class BonesWriter:
         self.cleanup()
 
 
+app = typer.Typer()
+
+
 @app.command()
 def main(
     directory: Path | None = None,
     config: Path | None = None,
-    blank_timeout: float | None = typer.Option(
-        None, help="Timeout in seconds before blanking the text"
-    ),
+    blank_timeout: float | None = typer.Option(None, help="Timeout in seconds before blanking the text"),
     stats_brightness: int | None = typer.Option(
         None,
         help="Brightness level for stats display (0-1000)",
