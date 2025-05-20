@@ -34,6 +34,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "blank_timeout": BLANK_TIMEOUT,
 }
 
+
 class CategoryCompleter:
     def __init__(self, categories: list[str]) -> None:
         self.categories = categories
@@ -176,14 +177,6 @@ class BonesWriter:
 
         return win
 
-    def end_word(self) -> None:
-        self.in_word = False
-
-    def start_word(self) -> None:
-        if self.in_word is False:
-            self.live_word_count += 1
-        self.in_word = True
-
     def status_bar(self, stdscr: curses.window, raw_string: str | int, gap: int) -> None:
         string = str(raw_string)
 
@@ -295,25 +288,6 @@ class BonesWriter:
         }
         self.stats_table.insert(session_data)
 
-    def get_writing_stats(self) -> Dict[str, Any]:
-        """Get writing statistics from the database."""
-        sessions = self.stats_table.all()
-        if not sessions:
-            return {"total_sessions": 0, "total_words": 0, "total_time": 0, "average_wpm": 0, "average_spelling": 0}
-
-        total_words = sum(session["word_count"] for session in sessions)
-        total_time = sum(session["duration_seconds"] for session in sessions)
-        total_wpm = sum(session["wpm"] for session in sessions)
-        total_spelling = sum(session["spelling_accuracy"] for session in sessions)
-
-        return {
-            "total_sessions": len(sessions),
-            "total_words": total_words,
-            "total_time": total_time,
-            "average_wpm": total_wpm / len(sessions),
-            "average_spelling": total_spelling / len(sessions),
-        }
-
     def add_title(self, path: Path, title: str) -> None:
         # Add title to the top of the file
         # There may be a more efficient method
@@ -358,13 +332,15 @@ class BonesWriter:
             return
 
         if key == ord(" "):  # Space key
-            self.end_word()
+            self.in_word = False
             self.write_char(win, " ")
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
-            self.end_word()
+            self.in_word = False
             self.write_char(win, "\n")
         elif 32 <= key <= 126:  # Printable ASCII characters
-            self.start_word()
+            if self.in_word is False:
+                self.live_word_count += 1
+            self.in_word = True
             self.write_char(win, f"{chr(key)}")
 
     def curses_loop(self, stdscr: curses.window) -> None:
