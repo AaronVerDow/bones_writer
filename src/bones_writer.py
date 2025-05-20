@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 from tinydb import TinyDB, Query
 import matplotlib.pyplot as plt
+from git import Repo
 
 
 # Constants
@@ -413,22 +414,22 @@ class BonesWriter:
         fig.suptitle(f"Writing Stats for the Last {time_delta_days} Days (100+ words only)")
 
         # Plot duration
-        ax1.plot(timestamps, durations, marker='o', color='b')
+        ax1.plot(timestamps, durations, marker="o", color="b")
         ax1.set_ylabel("Duration (min)")
         ax1.grid(True)
 
         # Plot word count
-        ax2.plot(timestamps, word_counts, marker='o', color='g')
+        ax2.plot(timestamps, word_counts, marker="o", color="g")
         ax2.set_ylabel("Word Count")
         ax2.grid(True)
 
         # Plot WPM
-        ax3.plot(timestamps, wpms, marker='o', color='r')
+        ax3.plot(timestamps, wpms, marker="o", color="r")
         ax3.set_ylabel("WPM")
         ax3.grid(True)
 
         # Plot spelling accuracy
-        ax4.plot(timestamps, spelling_accuracies, marker='o', color='m')
+        ax4.plot(timestamps, spelling_accuracies, marker="o", color="m")
         ax4.set_ylabel("Spelling Accuracy (%)")
         ax4.grid(True)
 
@@ -456,11 +457,21 @@ class BonesWriter:
         # Query the database for sessions after the cutoff time and with word count >= 100
         WritingSession = Query()
         sessions = self.stats_table.search(
-            (WritingSession.timestamp >= cutoff_time.isoformat()) &
-            (WritingSession.word_count >= 100)
+            (WritingSession.timestamp >= cutoff_time.isoformat()) & (WritingSession.word_count >= 100)
         )
 
         return sessions
+
+    def is_in_git_repo(self, path: Path) -> bool:
+        """Check if the given path is within a git repository."""
+        try:
+            _ = Repo(path, search_parent_directories=True)
+            return True
+        except git.InvalidGitRepositoryError:
+            return False
+        except Exception as e:
+            print(f"Error checking git repository: {e}")
+            return False
 
 
 app = typer.Typer()

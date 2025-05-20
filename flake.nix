@@ -21,6 +21,7 @@
           pyspellchecker
           tinydb
           matplotlib
+          gitpython
         ]))
         pkgs.pre-commit
       ];
