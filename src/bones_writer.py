@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 from tinydb import TinyDB, Query
 import matplotlib.pyplot as plt
-from git import Repo
+import git
 
 
 # Constants
@@ -106,6 +106,12 @@ class BonesWriter:
         self.text_content: list[tuple[str, int, int]] = []
         self.current_line = 0
         self.current_col = 0
+        """Check if the given path is within a git repository."""
+
+        try:
+            self.repo = git.Repo(self.dir, search_parent_directories=True)
+        except git.InvalidGitRepositoryError:
+            self.repo = None
 
     def load_config(self, config_path: Path) -> Dict[str, Any]:
         """Load configuration from file or return defaults if not found."""
@@ -461,17 +467,6 @@ class BonesWriter:
         )
 
         return sessions
-
-    def is_in_git_repo(self, path: Path) -> bool:
-        """Check if the given path is within a git repository."""
-        try:
-            _ = Repo(path, search_parent_directories=True)
-            return True
-        except git.InvalidGitRepositoryError:
-            return False
-        except Exception as e:
-            print(f"Error checking git repository: {e}")
-            return False
 
 
 app = typer.Typer()
