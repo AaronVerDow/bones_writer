@@ -79,28 +79,29 @@ def test_write_char(bones_writer, mock_stdscr):
 
 def test_word_counting(bones_writer, mock_stdscr):
     bones_writer.outfile = MagicMock()  # Mock the outfile
+    
+    # Create a mock window with all required methods
+    mock_win = MagicMock()
+    mock_win.getch.side_effect = [
+        ord("h"), ord("e"), ord("l"), ord("l"),  # "hell"
+        ord("o"), ord(" "),  # "o "
+        ord("w"), ord("o")  # "wo"
+    ]
+    mock_win.getyx.return_value = (0, 0)  # Return default cursor position
+    mock_win.addstr = MagicMock()
+    mock_win.refresh = MagicMock()
+    
     # Test word counting functionality
-    # Write a word
-    bones_writer.write_char(mock_stdscr, "h")
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, "e")
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, "l")
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, "l")
+    for _ in range(4):  # "hell"
+        bones_writer.inner_loop(mock_win)
     assert bones_writer.live_word_count == 1
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, "o")
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, " ")
-    bones_writer.end_word()
-    bones_writer.write_char(mock_stdscr, " ")
-    bones_writer.end_word()
+    
+    for _ in range(2):  # "o "
+        bones_writer.inner_loop(mock_win)
     assert bones_writer.live_word_count == 1
-    bones_writer.write_char(mock_stdscr, "w")
-    bones_writer.start_word()
-    bones_writer.write_char(mock_stdscr, "0")
-    bones_writer.start_word()
+    
+    for _ in range(2):  # "wo"
+        bones_writer.inner_loop(mock_win)
     assert bones_writer.live_word_count == 2
 
 
