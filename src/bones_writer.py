@@ -233,7 +233,7 @@ class BonesWriter:
         shutil.move(self.filepath, new_filepath)
         self.filepath = new_filepath
 
-    def check_spelling(self) -> float:
+    def check_spelling(self) -> int:
         """Check the spelling of words in the file and return the percentage of correctly spelled words."""
         spell = SpellChecker()
 
@@ -245,7 +245,7 @@ class BonesWriter:
         words = re.findall(r"\b\w+\b", content.lower())
 
         if not words:
-            return 0.0  # Return 0% if no words found
+            return 0  # Return 0% if no words found
 
         # Find misspelled words
         misspelled = spell.unknown(words)
@@ -253,7 +253,7 @@ class BonesWriter:
         # Calculate percentage of correctly spelled words
         total_words = len(words)
         correct_words = total_words - len(misspelled)
-        percentage = (correct_words / total_words) * 100
+        percentage = int((correct_words / total_words) * 100)
 
         return percentage
 
@@ -273,7 +273,7 @@ class BonesWriter:
         print(f"Session time: {human_readable}")
         print(f"Words: {word_count}")
         print(f"WPM: {wpm}")
-        print(f"Spelling accuracy: {spelling_percentage:.1f}%")
+        print(f"Spelling accuracy: {spelling_percentage}%")
 
         self.name_file()
 
