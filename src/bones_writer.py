@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 from tinydb import TinyDB, Query
+import matplotlib.pyplot as plt
 
 
 # Constants
@@ -385,6 +386,82 @@ class BonesWriter:
         curses.wrapper(self.curses_loop)
         self.cleanup()
 
+    def plot_writing_stats(self, time_delta_days: int) -> None:
+        """
+        Query the database for writing sessions within the specified time range and plot the data.
+        Only includes sessions with word counts >= 100.
+
+        Args:
+            time_delta_days (int): Number of days to look back for writing sessions.
+        """
+        # Query the database for sessions after the cutoff time with word count >= 100
+        sessions = self.query_high_word_count_sessions(time_delta_days)
+
+        if not sessions:
+            print("No writing sessions with 100+ words found in the specified time range.")
+            return
+
+        # Extract data for plotting
+        timestamps = [datetime.fromisoformat(session["timestamp"]) for session in sessions]
+        durations = [session["duration_seconds"] / 60 for session in sessions]  # Convert to minutes
+        word_counts = [session["word_count"] for session in sessions]
+        wpms = [session["wpm"] for session in sessions]
+        spelling_accuracies = [session["spelling_accuracy"] for session in sessions]
+
+        # Create a figure with subplots
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 12))
+        fig.suptitle(f"Writing Stats for the Last {time_delta_days} Days (100+ words only)")
+
+        # Plot duration
+        ax1.plot(timestamps, durations, marker='o', color='b')
+        ax1.set_ylabel("Duration (min)")
+        ax1.grid(True)
+
+        # Plot word count
+        ax2.plot(timestamps, word_counts, marker='o', color='g')
+        ax2.set_ylabel("Word Count")
+        ax2.grid(True)
+
+        # Plot WPM
+        ax3.plot(timestamps, wpms, marker='o', color='r')
+        ax3.set_ylabel("WPM")
+        ax3.grid(True)
+
+        # Plot spelling accuracy
+        ax4.plot(timestamps, spelling_accuracies, marker='o', color='m')
+        ax4.set_ylabel("Spelling Accuracy (%)")
+        ax4.grid(True)
+
+        # Rotate x-axis labels for better readability
+        for ax in [ax1, ax2, ax3, ax4]:
+            plt.sca(ax)
+            plt.xticks(rotation=45)
+
+        plt.tight_layout()
+        plt.show()
+
+    def query_high_word_count_sessions(self, time_delta_days: int) -> list[dict[str, Any]]:
+        """
+        Query the database for writing sessions within the specified time range and ignore entries with a word count less than 100.
+
+        Args:
+            time_delta_days (int): Number of days to look back for writing sessions.
+
+        Returns:
+            list[dict[str, Any]]: A list of sessions with word counts >= 100.
+        """
+        # Calculate the cutoff time
+        cutoff_time = datetime.now() - timedelta(days=time_delta_days)
+
+        # Query the database for sessions after the cutoff time and with word count >= 100
+        WritingSession = Query()
+        sessions = self.stats_table.search(
+            (WritingSession.timestamp >= cutoff_time.isoformat()) &
+            (WritingSession.word_count >= 100)
+        )
+
+        return sessions
+
 
 app = typer.Typer()
 
@@ -409,6 +486,18 @@ def main(
         stats_brightness=stats_brightness,
     )
     writer.main()
+
+
+@app.command()
+def stats(
+    days: int = typer.Option(7, help="Number of days to look back for writing sessions"),
+    config: Path | None = None,
+) -> None:
+    """
+    Show writing statistics for the specified time period.
+    """
+    writer = BonesWriter(config_path=config)
+    writer.plot_writing_stats(days)
 
 
 if __name__ == "__main__":

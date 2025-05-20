@@ -20,6 +20,7 @@
           typer
           pyspellchecker
           tinydb
+          matplotlib
         ]))
         pkgs.pre-commit
       ];
