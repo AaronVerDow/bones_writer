@@ -390,6 +390,7 @@ class BonesWriter:
         return self.seconds(diff_ns)
 
     def main(self) -> None:
+        self.pause_on_dirty_repo()
         curses.wrapper(self.curses_loop)
         self.cleanup()
 
@@ -467,6 +468,53 @@ class BonesWriter:
         )
 
         return sessions
+
+    def pause_on_dirty_repo(self) -> None:
+        error: str | None = self.check_repo_status()
+        if error is None:
+            return
+        print(error)
+        exit(1)
+
+    def check_repo_status(self) -> str | None:
+        """
+        Check the status of the Git repository to determine if there are remote changes
+        that would prevent pushing a commit, and if there are uncommitted changes locally.
+
+        Returns:
+            str: A message indicating the status of the repository.
+        """
+        if self.repo is None:
+            return "No Git repository found."
+
+        try:
+            # Check for uncommitted changes (staged or unstaged)
+            if self.repo.is_dirty(untracked_files=False):
+                return "There are uncommitted changes in the working tree."
+
+            # Fetch the latest changes from the remote
+            for remote in self.repo.remotes:
+                remote.fetch()
+
+            # Get the active branch
+            active_branch = self.repo.active_branch
+            remote_name = f"origin/{active_branch.name}"
+
+            # Check if the remote branch exists
+            if remote_name not in self.repo.refs:
+                return f"Remote branch '{remote_name}' does not exist."
+
+            # Compare the local and remote branches
+            local_commit = self.repo.head.commit
+            remote_commit = self.repo.refs[remote_name].commit
+
+            if local_commit == remote_commit:
+                return None
+            else:
+                return "Local branch is behind the remote. Pull changes before pushing."
+
+        except git.GitCommandError as e:
+            return f"Error checking repository status: {e}"
 
 
 app = typer.Typer()
