@@ -11,11 +11,13 @@ This is in a pre-alpha state.
 * Run `bones_writer.py`
 * Live stats are in the upper right hand corner
 * Ctrl-c to exit
+* Enter in category and title
 * Files are stored in ~/Documents/bones/
 
 ## Features
 
 * [x] Autosave files
+* [x] Git integration
 * [x] No ability to make any edits
 * Statistics
   * Tracked stats
@@ -26,8 +28,8 @@ This is in a pre-alpha state.
     * [ ] % grammar errors per sentance
   * [x] Show stats on session completion
   * [x] Live tracker
-  * [ ] Save statistics
-  * [ ] Graph statistics
+  * [x] Save statistics
+  * [x] Graph statistics
 * [ ] Daily streak tracker
 * [x] Automatically blank screen if thinking too long
 * [ ] Hostage mode: do not release input controls until word or time goal is met
