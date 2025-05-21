@@ -70,6 +70,8 @@ class BonesWriter:
             self.dir = Path(self.config["directory"])
 
         self.db_path = Path.joinpath(self.dir, ".bones_database.json")
+        # Ensure the directory exists
+        self.dir.mkdir(parents=True, exist_ok=True)
         self.db = TinyDB(self.db_path)
         self.stats_table = self.db.table("sessions")
 
@@ -108,6 +110,7 @@ class BonesWriter:
 
         try:
             self.repo = git.Repo(self.dir, search_parent_directories=True)
+            print("Using git repository")
         except git.InvalidGitRepositoryError:
             self.repo = None
 
@@ -539,6 +542,7 @@ class BonesWriter:
 
             # Push the changes to the remote
             self.repo.git.push()
+            print("Pushed upstream")
         except git.GitCommandError as e:
             raise RuntimeError(f"Failed to commit and push changes: {e}")
 
