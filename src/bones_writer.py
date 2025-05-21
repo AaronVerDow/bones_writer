@@ -292,7 +292,7 @@ class BonesWriter:
         # Store session data in TinyDB
         session_data = {
             "timestamp": datetime.now().isoformat(),
-            "filepath": str(self.filepath),
+            "filepath": str(self.relative_filepath(self.filepath)),
             "duration_seconds": diff_seconds,
             "word_count": word_count,
             "wpm": wpm,
@@ -545,6 +545,21 @@ class BonesWriter:
             print("Pushed upstream")
         except git.GitCommandError as e:
             raise RuntimeError(f"Failed to commit and push changes: {e}")
+
+    def relative_filepath(self, filepath: Path) -> Path:
+        """
+        Returns the relative path from the repository root to the file.
+        If no repository exists, returns the absolute filepath.
+
+        Args:
+            filepath (Path): The file path to resolve.
+
+        Returns:
+            Path: The relative path from the repo root or the absolute path.
+        """
+        if self.repo is None:
+            return filepath
+        return Path(os.path.relpath(filepath, self.repo.working_dir))
 
 
 app = typer.Typer()
