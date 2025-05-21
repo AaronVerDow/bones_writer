@@ -64,16 +64,14 @@ class BonesWriter:
             config_path = CONFIG
         self.config = self.load_config(config_path)
 
-        # Initialize database
-        self.db_path = Path.joinpath(CONFIG_DIR, "writing_stats.json")
-        self.db = TinyDB(self.db_path)
-        self.stats_table = self.db.table("writing_sessions")
-
-        # Override config values if explicitly provided
         if directory is not None:
             self.dir = directory
         else:
             self.dir = Path(self.config["directory"])
+
+        self.db_path = Path.joinpath(self.dir, ".bones_database.json")
+        self.db = TinyDB(self.db_path)
+        self.stats_table = self.db.table("sessions")
 
         if blank_timeout is not None:
             self.config["blank_timeout"] = blank_timeout
@@ -283,7 +281,10 @@ class BonesWriter:
         print(f"WPM: {wpm}")
         print(f"Spelling accuracy: {spelling_percentage}%")
 
-        self.name_file()
+        category, title = self.prompt_name()
+        self.rename_file(category, title) # updates self.filepath
+        self.add_title(self.filepath, title)
+        print(f"\nFile written to: {self.filepath}")
 
         # Store session data in TinyDB
         session_data = {
@@ -296,7 +297,7 @@ class BonesWriter:
         }
         self.stats_table.insert(session_data)
 
-        self.git_commit_and_push([self.filepath, self.db_path], "")
+        self.git_commit_and_push([self.filepath, self.db_path], f"{category}: {title}")
 
     def add_title(self, path: Path, title: str) -> None:
         # Add title to the top of the file
@@ -308,7 +309,7 @@ class BonesWriter:
         with open(self.filepath, "w") as file:
             file.write(f"## {title}\n\n{content}")
 
-    def name_file(self) -> None:
+    def prompt_name(self) -> tuple[str, str]:
         # Set up tab completion for categories
         categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
         completer = CategoryCompleter(categories)
@@ -324,10 +325,8 @@ class BonesWriter:
         if not title:
             title = "untitled"
 
-        self.add_title(self.filepath, title)
+        return category, title
 
-        self.rename_file(category, title)
-        print(f"\nFile written to: {self.filepath}")
 
     def inner_loop(self, win: curses.window) -> None:
         try:
@@ -418,7 +417,7 @@ class BonesWriter:
         wpms = [session["wpm"] for session in sessions]
         spelling_accuracies = [session["spelling_accuracy"] for session in sessions]
 
-        # Create a figure with subplots
+       # Create a figure with subplots
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 12))
         fig.suptitle(f"Writing Stats for the Last {time_delta_days} Days (100+ words only)")
 
@@ -487,7 +486,8 @@ class BonesWriter:
             str: A message indicating the status of the repository.
         """
         if self.repo is None:
-            return "No Git repository found."
+            # return "No Git repository found."
+            return None
 
         try:
             # Check for uncommitted changes (staged or unstaged)
@@ -527,7 +527,7 @@ class BonesWriter:
             commit_message (str): The commit message to use.
         """
         if self.repo is None:
-            raise ValueError("No Git repository found.")
+            return None
 
         try:
             # Add the files to Git
