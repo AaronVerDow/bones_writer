@@ -296,6 +296,8 @@ class BonesWriter:
         }
         self.stats_table.insert(session_data)
 
+        self.git_commit_and_push([self.filepath, self.db_path], "")
+
     def add_title(self, path: Path, title: str) -> None:
         # Add title to the top of the file
         # There may be a more efficient method
@@ -515,6 +517,30 @@ class BonesWriter:
 
         except git.GitCommandError as e:
             return f"Error checking repository status: {e}"
+
+    def git_commit_and_push(self, file_paths: list[Path], commit_message: str) -> None:
+        """
+        Add files to Git, commit them with the provided message, and push the changes.
+
+        Args:
+            file_paths (list[Path]): The paths of the files to add and commit.
+            commit_message (str): The commit message to use.
+        """
+        if self.repo is None:
+            raise ValueError("No Git repository found.")
+
+        try:
+            # Add the files to Git
+            for file_path in file_paths:
+                self.repo.git.add(str(file_path))
+
+            # Commit the changes
+            self.repo.git.commit("-m", commit_message)
+
+            # Push the changes to the remote
+            self.repo.git.push()
+        except git.GitCommandError as e:
+            raise RuntimeError(f"Failed to commit and push changes: {e}")
 
 
 app = typer.Typer()
