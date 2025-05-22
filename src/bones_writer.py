@@ -165,15 +165,19 @@ class BonesWriter:
         cursor_y, cursor_x = win.getyx()  # Save cursor position
 
         if self.current_fade_step < NUM_FADE_STEPS:
-            # Update color pair for all text
-            new_color_pair = self.current_fade_step + 2
             win.clear()
-            for char, y, x, _ in self.text_content:
-                try:
-                    win.addstr(y, x, char, curses.color_pair(new_color_pair))
-                except curses.error:
-                    pass
-            win.refresh()
+            # At final step, don't show any text
+            if self.current_fade_step == NUM_FADE_STEPS - 1:
+                win.refresh()
+            else:
+                # Update color pair for all text
+                new_color_pair = self.current_fade_step + 2
+                for char, y, x, _ in self.text_content:
+                    try:
+                        win.addstr(y, x, char, curses.color_pair(new_color_pair))
+                    except curses.error:
+                        pass
+                win.refresh()
             self.current_fade_step += 1
             self.blank = True
 
@@ -396,7 +400,14 @@ class BonesWriter:
 
         # Initialize text fading colors
         for i in range(NUM_FADE_STEPS):
-            brightness = 1000 - (i * (1000 // NUM_FADE_STEPS))
+            # Make the last step completely transparent (brightness 0)
+            if i == NUM_FADE_STEPS - 1:
+                brightness = 0
+            else:
+                # Distribute remaining brightness levels across other steps
+                brightness = 1000 - (i * (1000 // (NUM_FADE_STEPS - 1)))
+                brightness = max(1, brightness)  # Ensure non-zero brightness for visible steps
+            
             color_num = TEXT_COLOR_START + i
             curses.init_color(color_num, brightness, brightness, brightness)
             curses.init_pair(i + 2, color_num, curses.COLOR_BLACK)  # Start from pair 2 since 1 is used for stats
