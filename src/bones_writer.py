@@ -28,6 +28,7 @@ FADE_INTERVAL: float = 0.1  # Time in seconds between fade steps
 # I don't know how I want to handle these yet.
 CONFIG_DIR: Path = Path.joinpath(Path.home(), ".config", "bones_writer")
 OUTPUT_DIR: Path = Path.joinpath(Path.home(), "Documents", "bones")
+TRASH_DIR: Path = Path("/tmp")
 CONFIG: Path = Path.joinpath(CONFIG_DIR, "config.yaml")
 BLANK_TIMEOUT: float = 5.0  # Timeout in seconds before blanking the text
 STATS_BRIGHTNESS: int = 200  # adjust for darknes of live stats, 0-1000
@@ -35,6 +36,7 @@ STATS_BRIGHTNESS: int = 200  # adjust for darknes of live stats, 0-1000
 # Default configuration
 DEFAULT_CONFIG: Dict[str, Any] = {
     "directory": OUTPUT_DIR,
+    "trash_directory": TRASH_DIR,
     "stats_brightness": STATS_BRIGHTNESS,
     "blank_timeout": BLANK_TIMEOUT,
 }
@@ -312,6 +314,20 @@ class BonesWriter:
         print(f"Spelling accuracy: {spelling_percentage}%")
 
         category, title = self.prompt_name()
+        
+        # If both category and title are empty, move file to trash directory and return
+        if category is None and title is None:
+            # Ensure trash directory exists
+            trash_dir = Path(self.config["trash_directory"])
+            trash_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Move file to trash with timestamp to avoid conflicts
+            trash_filename = f"{int(time.time())}_{self.filepath.name}"
+            trash_filepath = Path.joinpath(trash_dir, trash_filename)
+            shutil.move(self.filepath, trash_filepath)
+            print(f"\nNo category or title provided. File moved to trash: {trash_filepath}")
+            return
+
         self.rename_file(category, title) # updates self.filepath
         self.add_title(self.filepath, title)
         print(f"\nFile written to: {self.filepath}")
@@ -339,7 +355,7 @@ class BonesWriter:
         with open(self.filepath, "w") as file:
             file.write(f"## {title}\n\n{content}")
 
-    def prompt_name(self) -> tuple[str, str]:
+    def prompt_name(self) -> tuple[str | None, str | None]:
         # Set up tab completion for categories
         categories = [d.name for d in self.dir.iterdir() if d.is_dir()]
         completer = CategoryCompleter(categories)
@@ -348,10 +364,15 @@ class BonesWriter:
 
         print("\nPlease enter details for your writing:")
         category = input("Category: ").strip()
+        title = input("Title: ").strip()
+
+        # If both are empty, return None for both
+        if not category and not title:
+            return None, None
+
+        # Otherwise use defaults if either is empty
         if not category:
             category = "uncategorized"
-
-        title = input("Title: ").strip()
         if not title:
             title = "untitled"
 
