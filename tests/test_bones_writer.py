@@ -1,10 +1,11 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.bones_writer import BonesWriter
+from src.bones_writer import BonesWriter, NUM_FADE_STEPS
 import os
 from pathlib import Path
 import time
 import shutil
+import curses
 
 
 class MockCursesWindow:
@@ -20,6 +21,10 @@ class MockCursesWindow:
         if len(args) == 1:
             string = args[0]
             self.content.append((self.cursor_y, self.cursor_x, string))
+            self.cursor_x += len(str(string))
+        elif len(args) == 2:
+            string, attr = args
+            self.content.append((self.cursor_y, self.cursor_x, string, attr))
             self.cursor_x += len(str(string))
         elif len(args) == 3:
             y, x, string = args
@@ -47,6 +52,8 @@ class MockCursesWindow:
 
     def clear(self):
         self.content = []
+        self.cursor_y = 0
+        self.cursor_x = 0
 
 
 @pytest.fixture
@@ -55,26 +62,26 @@ def mock_stdscr():
 
 
 @pytest.fixture
-def bones_writer():
-    writer = BonesWriter()
-    yield writer
-    # Cleanup after tests
-    if os.path.exists(writer.filepath):
-        os.remove(writer.filepath)
-    # Clean up any test category directories
-    test_category_dir = Path.joinpath(writer.dir, "test_category")
-    if os.path.exists(test_category_dir):
-        shutil.rmtree(test_category_dir)
+def bones_writer(tmp_path):
+    with patch("curses.color_pair", return_value=0):  # Mock color_pair to avoid curses initialization
+        writer = BonesWriter(directory=tmp_path)
+        yield writer
+        # Cleanup
+        if writer.filepath.exists():
+            writer.filepath.unlink()
+        if writer.db_path.exists():
+            writer.db_path.unlink()
 
 
 def test_write_char(bones_writer, mock_stdscr):
     bones_writer.outfile = MagicMock()  # Mock the outfile
-    # Test writing a single character
-    bones_writer.write_char(mock_stdscr, "a")
-    # Verify the character was written to the window
-    assert mock_stdscr.content[-1][2] == "a"
-    # Verify the character was written to the file
-    bones_writer.outfile.write.assert_called_with("a")
+    with patch("curses.color_pair", return_value=0):  # Mock color_pair
+        # Test writing a single character
+        bones_writer.write_char(mock_stdscr, "a")
+        # Verify the character was written to the window
+        assert mock_stdscr.content[-1][2] == "a"
+        # Verify the character was written to the file
+        bones_writer.outfile.write.assert_called_with("a")
 
 
 def test_word_counting(bones_writer, mock_stdscr):
@@ -96,33 +103,40 @@ def test_word_counting(bones_writer, mock_stdscr):
     mock_win.addstr = MagicMock()
     mock_win.refresh = MagicMock()
 
-    # Test word counting functionality
-    for _ in range(4):  # "hell"
-        bones_writer.inner_loop(mock_win)
-    assert bones_writer.live_word_count == 1
+    with patch("curses.color_pair", return_value=0):  # Mock color_pair
+        # Test word counting functionality
+        for _ in range(4):  # "hell"
+            bones_writer.inner_loop(mock_win)
+        assert bones_writer.live_word_count == 1
 
-    for _ in range(2):  # "o "
-        bones_writer.inner_loop(mock_win)
-    assert bones_writer.live_word_count == 1
+        for _ in range(2):  # "o "
+            bones_writer.inner_loop(mock_win)
+        assert bones_writer.live_word_count == 1
 
-    for _ in range(2):  # "wo"
-        bones_writer.inner_loop(mock_win)
-    assert bones_writer.live_word_count == 2
+        for _ in range(2):  # "wo"
+            bones_writer.inner_loop(mock_win)
+        assert bones_writer.live_word_count == 2
 
 
 def test_blank_text(bones_writer, mock_stdscr):
     bones_writer.outfile = MagicMock()  # Mock the outfile
-    # Test text blanking functionality
-    # Write some text
-    bones_writer.write_char(mock_stdscr, "t")
-    bones_writer.write_char(mock_stdscr, "e")
-    bones_writer.write_char(mock_stdscr, "s")
-    bones_writer.write_char(mock_stdscr, "t")
-    # Blank the text
-    bones_writer.blank_text(mock_stdscr)
-    # Verify the window was cleared
-    assert len(mock_stdscr.content) == 0
-    assert bones_writer.blank == True
+    with patch("curses.color_pair", return_value=0):  # Mock color_pair
+        # Test text blanking functionality
+        # Write some text
+        bones_writer.write_char(mock_stdscr, "t")
+        bones_writer.write_char(mock_stdscr, "e")
+        bones_writer.write_char(mock_stdscr, "s")
+        bones_writer.write_char(mock_stdscr, "t")
+        
+        # Simulate fading steps
+        bones_writer.current_fade_step = NUM_FADE_STEPS - 1
+        bones_writer.last_fade_time = 0  # Reset fade time to ensure it runs
+        
+        # Blank the text
+        bones_writer.blank_text(mock_stdscr)
+        # Verify the window was cleared
+        assert len(mock_stdscr.content) == 0
+        assert bones_writer.blank is True
 
 
 def test_status_bar(bones_writer, mock_stdscr):
@@ -217,18 +231,24 @@ def test_curses_loop(bones_writer):
 def test_show_text(bones_writer, mock_stdscr):
     """Test showing text after blanking"""
     bones_writer.outfile = MagicMock()  # Mock the outfile
-    # Write some text
-    bones_writer.write_char(mock_stdscr, "t")
-    bones_writer.write_char(mock_stdscr, "e")
-    bones_writer.write_char(mock_stdscr, "s")
-    bones_writer.write_char(mock_stdscr, "t")
-    # Blank the text
-    bones_writer.blank_text(mock_stdscr)
-    assert bones_writer.blank is True
-    # Show the text again
-    bones_writer.show_text(mock_stdscr)
-    assert bones_writer.blank is False
-    assert len(mock_stdscr.content) > 0
+    with patch("curses.color_pair", return_value=0):  # Mock color_pair
+        # Write some text
+        bones_writer.write_char(mock_stdscr, "t")
+        bones_writer.write_char(mock_stdscr, "e")
+        bones_writer.write_char(mock_stdscr, "s")
+        bones_writer.write_char(mock_stdscr, "t")
+        
+        # Simulate fading steps
+        bones_writer.current_fade_step = NUM_FADE_STEPS - 1
+        bones_writer.last_fade_time = 0  # Reset fade time to ensure it runs
+        
+        # Blank the text
+        bones_writer.blank_text(mock_stdscr)
+        assert bones_writer.blank is True
+        # Show the text again
+        bones_writer.show_text(mock_stdscr)
+        assert bones_writer.blank is False
+        assert len(mock_stdscr.content) > 0
 
 
 def test_sanitize_path(bones_writer):
