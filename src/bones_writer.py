@@ -20,6 +20,9 @@ import git
 # required by curses to define custom color, changes nothing
 GRAY_PAIR: int = 1
 GRAY_COLOR: int = 100
+TEXT_COLOR_START: int = 200  # Starting color number for text colors
+NUM_FADE_STEPS: int = 32  # Number of brightness levels for fading
+FADE_INTERVAL: float = 0.1  # Time in seconds between fade steps
 
 # Defaults
 # I don't know how I want to handle these yet.
@@ -100,12 +103,15 @@ class BonesWriter:
         self.in_word = False
         self.live_word_count = 0
 
-        # Text blanking related variables
+        # Text fading related variables
         self.last_keypress_time = time.time()
         self.blank = False
-        self.text_content: list[tuple[str, int, int]] = []
+        self.text_content: list[tuple[str, int, int, int]] = []  # (char, y, x, color_pair)
         self.current_line = 0
         self.current_col = 0
+        self.current_fade_step = 0
+        self.last_fade_time = time.time()
+
         """Check if the given path is within a git repository."""
 
         try:
@@ -132,14 +138,15 @@ class BonesWriter:
         self.outfile.write(char)
 
         y, x = win.getyx()
-        self.text_content.append((char, y, x))
+        self.text_content.append((char, y, x, 2))  # 2 is the first text color pair (full brightness)
 
         if self.timeout():
             self.show_text(win)
 
         self.last_keypress_time = time.time()
+        self.current_fade_step = 0  # Reset fade step on new input
 
-        win.addstr(char)
+        win.addstr(char, curses.color_pair(2))  # Use full brightness color pair
         win.refresh()
 
         if char == "\n":
@@ -149,28 +156,44 @@ class BonesWriter:
             self.current_col += 1
 
     def blank_text(self, win: curses.window) -> None:
-        # Only run once
-        if self.blank:
+        # Only run once per fade step
+        now = time.time()
+        if now - self.last_fade_time < FADE_INTERVAL:
             return
+
+        self.last_fade_time = now
         cursor_y, cursor_x = win.getyx()  # Save cursor position
-        win.clear()
-        win.refresh()
+
+        if self.current_fade_step < NUM_FADE_STEPS:
+            # Update color pair for all text
+            new_color_pair = self.current_fade_step + 2
+            win.clear()
+            for char, y, x, _ in self.text_content:
+                try:
+                    win.addstr(y, x, char, curses.color_pair(new_color_pair))
+                except curses.error:
+                    pass
+            win.refresh()
+            self.current_fade_step += 1
+            self.blank = True
+
         win.move(cursor_y, cursor_x)  # Restore cursor position
-        self.blank = True
 
     def show_text(self, win: curses.window) -> None:
         cursor_y, cursor_x = win.getyx()  # Save cursor position
         win.clear()
-        for char, y, x in self.text_content:
+        for char, y, x, color_pair in self.text_content:
             try:
-                win.addstr(y, x, char)
+                win.addstr(y, x, char, curses.color_pair(2))  # Always show at full brightness
                 win.refresh()  # Refresh after each character to ensure proper display
             except curses.error:
                 pass  # Handle potential curses errors when writing at window boundaries
         win.move(cursor_y, cursor_x)  # Restore cursor position
         self.blank = False
+        self.current_fade_step = 0
 
     def timeout(self) -> bool:
+        """Check if it's time to start fading the text"""
         return time.time() - self.last_keypress_time > self.config["blank_timeout"]
 
     def make_win(self) -> curses.window:
@@ -362,6 +385,7 @@ class BonesWriter:
         stdscr.timeout(50)
 
         curses.start_color()
+        # Initialize stats color
         curses.init_color(
             GRAY_COLOR,
             self.config["stats_brightness"],
@@ -369,6 +393,13 @@ class BonesWriter:
             self.config["stats_brightness"],
         )
         curses.init_pair(GRAY_PAIR, GRAY_COLOR, curses.COLOR_BLACK)
+
+        # Initialize text fading colors
+        for i in range(NUM_FADE_STEPS):
+            brightness = 1000 - (i * (1000 // NUM_FADE_STEPS))
+            color_num = TEXT_COLOR_START + i
+            curses.init_color(color_num, brightness, brightness, brightness)
+            curses.init_pair(i + 2, color_num, curses.COLOR_BLACK)  # Start from pair 2 since 1 is used for stats
 
         # Is this bad practice?
         self.stdscr = stdscr
