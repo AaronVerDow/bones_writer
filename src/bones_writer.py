@@ -169,6 +169,7 @@ class BonesWriter:
             # At final step, don't show any text
             if self.current_fade_step == NUM_FADE_STEPS - 1:
                 win.refresh()
+                self.blank = True
             else:
                 # Update color pair for all text
                 new_color_pair = self.current_fade_step + 2
@@ -179,7 +180,6 @@ class BonesWriter:
                         pass
                 win.refresh()
             self.current_fade_step += 1
-            self.blank = True
 
         win.move(cursor_y, cursor_x)  # Restore cursor position
 
