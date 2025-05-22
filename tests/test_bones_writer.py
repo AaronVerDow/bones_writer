@@ -329,3 +329,142 @@ def test_cleanup_wpm(bones_writer):
                 bones_writer.cleanup()
                 # Verify WPM was printed (5 words per minute)
                 mock_print.assert_any_call("WPM: 5")
+
+
+def test_git_commit_and_push(bones_writer):
+    """Test git commit and push functionality"""
+    # Mock the git repository
+    mock_repo = MagicMock()
+    bones_writer.repo = mock_repo
+
+    # Test files to commit
+    test_files = [Path("test1.txt"), Path("test2.txt")]
+    commit_message = "Test commit"
+
+    # Call the function
+    bones_writer.git_commit_and_push(test_files, commit_message)
+
+    # Verify git commands were called correctly
+    for file_path in test_files:
+        mock_repo.git.add.assert_any_call(str(file_path))
+    mock_repo.git.commit.assert_called_once_with("-m", commit_message)
+    mock_repo.git.push.assert_called_once()
+
+
+def test_git_commit_and_push_no_repo(bones_writer):
+    """Test git commit and push when no repo exists"""
+    bones_writer.repo = None
+    test_files = [Path("test.txt")]
+    # Should return None without raising an exception
+    assert bones_writer.git_commit_and_push(test_files, "Test commit") is None
+
+
+def test_check_repo_status_clean(bones_writer):
+    """Test repo status check when repo is clean"""
+    mock_repo = MagicMock()
+    mock_repo.is_dirty.return_value = False
+    mock_repo.active_branch.name = "main"
+    mock_repo.head.commit = "commit1"
+    mock_repo.refs = {"origin/main": MagicMock(commit="commit1")}
+    mock_repo.remotes = [MagicMock()]
+    
+    bones_writer.repo = mock_repo
+    assert bones_writer.check_repo_status() is None
+
+
+def test_check_repo_status_dirty(bones_writer):
+    """Test repo status check when repo is dirty"""
+    mock_repo = MagicMock()
+    mock_repo.is_dirty.return_value = True
+    bones_writer.repo = mock_repo
+    
+    assert "uncommitted changes" in bones_writer.check_repo_status()
+
+
+def test_check_repo_status_behind(bones_writer):
+    """Test repo status check when local is behind remote"""
+    mock_repo = MagicMock()
+    mock_repo.is_dirty.return_value = False
+    mock_repo.active_branch.name = "main"
+    mock_repo.head.commit = "commit1"
+    mock_repo.refs = {"origin/main": MagicMock(commit="commit2")}
+    mock_repo.remotes = [MagicMock()]
+    
+    bones_writer.repo = mock_repo
+    assert "behind the remote" in bones_writer.check_repo_status()
+
+
+def test_relative_filepath_with_repo(bones_writer):
+    """Test relative filepath calculation with repo"""
+    mock_repo = MagicMock()
+    mock_repo.working_dir = "/home/user/repo"
+    bones_writer.repo = mock_repo
+    
+    test_path = Path("/home/user/repo/docs/test.txt")
+    expected = Path("docs/test.txt")
+    
+    assert bones_writer.relative_filepath(test_path) == expected
+
+
+def test_relative_filepath_no_repo(bones_writer):
+    """Test relative filepath calculation without repo"""
+    bones_writer.repo = None
+    test_path = Path("/home/user/test.txt")
+    assert bones_writer.relative_filepath(test_path) == test_path
+
+
+@pytest.fixture
+def mock_db():
+    """Fixture for mocking TinyDB database"""
+    mock_table = MagicMock()
+    mock_table.search.return_value = [
+        {
+            "timestamp": "2024-03-01T10:00:00",
+            "duration_seconds": 300,
+            "word_count": 150,
+            "wpm": 30,
+            "spelling_accuracy": 95
+        },
+        {
+            "timestamp": "2024-03-02T11:00:00",
+            "duration_seconds": 600,
+            "word_count": 300,
+            "wpm": 35,
+            "spelling_accuracy": 98
+        }
+    ]
+    return mock_table
+
+
+def test_query_high_word_count_sessions(bones_writer, mock_db):
+    """Test querying sessions with high word count"""
+    bones_writer.stats_table = mock_db
+    sessions = bones_writer.query_high_word_count_sessions(7)
+    
+    assert len(sessions) == 2
+    assert all(session["word_count"] >= 100 for session in sessions)
+    mock_db.search.assert_called_once()
+
+
+@patch("matplotlib.pyplot.show")
+@patch("matplotlib.pyplot.subplots")
+def test_plot_writing_stats(mock_subplots, mock_show, bones_writer, mock_db):
+    """Test plotting writing statistics"""
+    bones_writer.stats_table = mock_db
+    
+    # Mock the subplot objects
+    mock_fig = MagicMock()
+    mock_axes = [MagicMock() for _ in range(4)]
+    mock_subplots.return_value = (mock_fig, mock_axes)
+    
+    bones_writer.plot_writing_stats(7)
+    
+    # Verify plot was created and shown
+    mock_subplots.assert_called_once()
+    mock_show.assert_called_once()
+    
+    # Verify each axis was configured
+    for ax in mock_axes:
+        ax.plot.assert_called_once()
+        ax.set_ylabel.assert_called_once()
+        ax.grid.assert_called_once_with(True)
