@@ -527,3 +527,41 @@ def test_plot_writing_stats(mock_figure, mock_tight_layout, mock_xticks, mock_sc
         ax.plot.assert_called_once()
         ax.set_ylabel.assert_called_once()
         ax.grid.assert_called_once_with(True)
+
+
+def test_cleanup_trash_feature(bones_writer):
+    """Test that files are moved to trash when no category/title provided"""
+    # Mock the file operations
+    mock_file = mock_open(read_data="test content\n")
+    
+    # Mock the database operations
+    bones_writer.stats_table = MagicMock()
+    
+    # Mock time.time() to return a predictable value
+    mock_time = 1234567890
+    
+    # Create patches for all operations
+    with patch("builtins.open", mock_file):
+        with patch.object(bones_writer, "elapsed_seconds", return_value=60), \
+             patch.object(bones_writer, "check_spelling", return_value=95), \
+             patch("builtins.input", side_effect=["", ""]),  \
+             patch("builtins.print"),  \
+             patch("time.time", return_value=mock_time), \
+             patch("shutil.move") as mock_move, \
+             patch("pathlib.Path.mkdir") as mock_mkdir:
+            
+            # Run the cleanup
+            bones_writer.cleanup()
+            
+            # Verify trash directory was created
+            mock_mkdir.assert_called_with(parents=True, exist_ok=True)
+            
+            # Calculate expected trash filepath
+            expected_trash_filename = f"{mock_time}_{bones_writer.filepath.name}"
+            expected_trash_filepath = Path.joinpath(Path(bones_writer.config["trash_directory"]), expected_trash_filename)
+            
+            # Verify file was moved to trash
+            mock_move.assert_called_once_with(bones_writer.filepath, expected_trash_filepath)
+            
+            # Verify no stats were recorded
+            bones_writer.stats_table.insert.assert_not_called()
