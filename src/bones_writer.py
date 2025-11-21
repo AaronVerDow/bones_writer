@@ -157,6 +157,56 @@ class BonesWriter:
         else:
             self.current_col += 1
 
+    def delete_char(self, win: curses.window) -> None:
+        """Delete the character before the cursor."""
+        if not self.text_content:
+            return
+
+        # Remove the last character from text content
+        char, y, x, color_pair = self.text_content.pop()
+
+        # Update word count if we're deleting a word boundary
+        if char == " " or char == "\n":
+            self.in_word = False
+        elif self.in_word and len(self.text_content) > 0:
+            # Check if we're at the start of a new word (after a space)
+            prev_char = self.text_content[-1][0] if self.text_content else ""
+            if prev_char == " ":
+                self.in_word = False
+        elif not self.in_word and len(self.text_content) > 0:
+            # Check if we're at the start of a word (after a space)
+            prev_char = self.text_content[-1][0] if self.text_content else ""
+            if prev_char == " ":
+                self.in_word = True
+        elif not self.in_word and len(self.text_content) == 0:
+            # If we're deleting the first character, reset word count
+            self.live_word_count = 0
+
+        # Update live word count if we deleted a word boundary
+        if char == " " and self.in_word:
+            self.live_word_count -= 1
+            self.in_word = False
+        elif char == "\n":
+            self.in_word = False
+
+        # Move cursor back to the position of the character being deleted
+        win.move(y, x)
+
+        # Clear the character from screen
+        try:
+            win.addstr(y, x, " ", curses.color_pair(2))
+        except curses.error:
+            pass
+
+        win.refresh()
+
+        # Update current position
+        if char == "\n":
+            self.current_line -= 1
+            self.current_col = 0
+        else:
+            self.current_col -= 1
+
     def blank_text(self, win: curses.window) -> None:
         # Only run once per fade step
         now = time.time()
@@ -297,7 +347,7 @@ class BonesWriter:
 
     def cleanup(self) -> None:
         diff_seconds = self.elapsed_seconds()
-        human_readable = humanize.precisedelta(diff_seconds)
+        humanize.precisedelta(diff_seconds)
 
         word_count = 0
         with open(self.filepath, "r") as file:
@@ -308,19 +358,19 @@ class BonesWriter:
         wpm = int(word_count / (diff_seconds / 60.0))
         spelling_percentage = self.check_spelling()
 
-        print(f"Session time: {human_readable}")
+        print(f"Session time: {humanize.precisedelta(diff_seconds)}")
         print(f"Words: {word_count}")
         print(f"WPM: {wpm}")
         print(f"Spelling accuracy: {spelling_percentage}%")
 
         category, title = self.prompt_name()
-        
+
         # If both category and title are empty, move file to trash directory and return
         if category is None and title is None:
             # Ensure trash directory exists
             trash_dir = Path(self.config["trash_directory"])
             trash_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Move file to trash with timestamp to avoid conflicts
             trash_filename = f"{int(time.time())}_{self.filepath.name}"
             trash_filepath = Path.joinpath(trash_dir, trash_filename)
@@ -328,7 +378,7 @@ class BonesWriter:
             print(f"\nNo category or title provided. File moved to trash: {trash_filepath}")
             return
 
-        self.rename_file(category, title) # updates self.filepath
+        self.rename_file(category, title)  # updates self.filepath
         self.add_title(self.filepath, title)
         print(f"\nFile written to: {self.filepath}")
 
@@ -378,7 +428,6 @@ class BonesWriter:
 
         return category, title
 
-
     def inner_loop(self, win: curses.window) -> None:
         try:
             key = win.getch()
@@ -397,6 +446,8 @@ class BonesWriter:
         elif key == 10 or key == 13:  # Enter key (ASCII 10 or 13)
             self.in_word = False
             self.write_char(win, "\n")
+        elif key == 127 or key == 8:  # Backspace key
+            self.delete_char(win)
         elif 32 <= key <= 126:  # Printable ASCII characters
             if self.in_word is False:
                 self.live_word_count += 1
@@ -428,7 +479,7 @@ class BonesWriter:
                 # Distribute remaining brightness levels across other steps
                 brightness = 1000 - (i * (1000 // (NUM_FADE_STEPS - 1)))
                 brightness = max(1, brightness)  # Ensure non-zero brightness for visible steps
-            
+
             color_num = TEXT_COLOR_START + i
             curses.init_color(color_num, brightness, brightness, brightness)
             curses.init_pair(i + 2, color_num, curses.COLOR_BLACK)  # Start from pair 2 since 1 is used for stats
@@ -483,7 +534,7 @@ class BonesWriter:
         wpms = [session["wpm"] for session in sessions]
         spelling_accuracies = [session["spelling_accuracy"] for session in sessions]
 
-       # Create a figure with subplots
+        # Create a figure with subplots
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 12))
         fig.suptitle(f"Writing Stats for the Last {time_delta_days} Days (100+ words only)")
 
