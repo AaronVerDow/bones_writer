@@ -189,16 +189,14 @@ class BonesWriter:
         elif char == "\n":
             self.in_word = False
 
-        # Move cursor back to the position of the character being deleted
+        # Move cursor to deleted character position and clear it
         win.move(y, x)
+        win.addstr(y, x, " ", curses.color_pair(2))
+        win.refresh()
 
-        # Clear the character from screen
-        try:
-            win.addstr(y, x, " ", curses.color_pair(2))
-        except curses.error:
-            pass
-
-        # Refresh to show the cleared character
+        # Move cursor back one position
+        if x > 0:
+            win.move(y, x - 1)
         win.refresh()
 
         # Update current position
