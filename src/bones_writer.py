@@ -198,6 +198,7 @@ class BonesWriter:
         except curses.error:
             pass
 
+        # Refresh to show the cleared character
         win.refresh()
 
         # Update current position
