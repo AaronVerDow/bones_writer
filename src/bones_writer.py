@@ -192,11 +192,13 @@ class BonesWriter:
         # Move cursor to deleted character position and clear it
         win.move(y, x)
         win.addstr(y, x, " ", curses.color_pair(2))
-        win.refresh()
 
         # Move cursor back one position
         if x > 0:
-            win.move(y, x - 1)
+            # win.move(y, x - 1)
+            win.move(y, x)
+
+        # Refresh after cursor move to ensure proper display
         win.refresh()
 
         # Update current position
